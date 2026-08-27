@@ -5,7 +5,7 @@
 </p>
 
 > *A weir* — a low dam that directs flow rather than blocking it. The project's
-> earlier working name was **DAM** (Data · Algorithm · Machine); a weir is the
+> earlier working name was **DAM** (Data · Algorithm · Machine) inspired by the book Introduction to Machine Learning Systems by Vijay Janapa Reddi; a weir is the
 > friendlier dam.
 
 Train a simulated legged agent to walk using reinforcement learning. The simulator and the
