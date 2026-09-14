@@ -19,13 +19,14 @@ def sample_action(
     dims = tuple(action_shape.dims)
     low = action_shape.low
     high = action_shape.high
-    if low is not None and high is not None:
-        if deterministic:
-            return ((low + high) / 2.0).astype(np.float32)
-        return rng.uniform(low, high, size=dims).astype(np.float32)
+    if low is None or high is None:
+        raise ValueError(
+            "Action shape has no bounds; cannot sample an action. "
+            "The sim backend must report per-dimension low/high."
+        )
     if deterministic:
-        return np.zeros(dims, dtype=np.float32)
-    return rng.uniform(-1.0, 1.0, size=dims).astype(np.float32)
+        return ((low + high) / 2.0).astype(np.float32)
+    return rng.uniform(low, high, size=dims).astype(np.float32)
 
 
 class SpacesOnly(Env):

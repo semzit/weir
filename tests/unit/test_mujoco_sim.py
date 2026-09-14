@@ -21,7 +21,7 @@ def make_sim(model_path: Path, *, task: dict | None = None, **sim_config: object
     task_config = task if task is not None else {"name": "survive", "params": {}}
     sim.load(
         {"name": model_path.stem, "model": str(model_path)},
-        {**sim_config, "task": task_config},
+        {"time_limit": 10.0, "initial_noise": 0.0, **sim_config, "task": task_config},
     )
     return sim
 
@@ -60,14 +60,13 @@ _NO_CTRLRANGE_XML = """\
 """
 
 
-def test_action_shape_falls_back_when_ctrlrange_degenerate(tmp_path: Path) -> None:
+def test_action_shape_rejects_degenerate_ctrlrange(tmp_path: Path) -> None:
     model = tmp_path / "no_ctrlrange.xml"
     model.write_text(_NO_CTRLRANGE_XML, encoding="utf-8")
     sim = make_sim(model)
-    shape = sim.action_shape()
-    assert shape.low is not None and shape.high is not None
-    assert np.all(shape.low == -1.0)
-    assert np.all(shape.high == 1.0)
+    with pytest.raises(ValueError, match="degenerate"):
+        sim.action_shape()
+    sim.close()
 
 
 def test_step_returns_simstep() -> None:
@@ -94,17 +93,17 @@ def test_reset_is_deterministic_without_seed() -> None:
     assert np.array_equal(a, b)
 
 
-def test_seed_randomizes_initial_state() -> None:
-    a = make_sim(MENAGERIE).reset(seed=1)
-    b = make_sim(MENAGERIE).reset(seed=2)
-    c = make_sim(MENAGERIE).reset(seed=1)
+def test_seed_makes_initial_noise_reproducible() -> None:
+    a = make_sim(MENAGERIE, initial_noise=0.1).reset(seed=1)
+    b = make_sim(MENAGERIE, initial_noise=0.1).reset(seed=2)
+    c = make_sim(MENAGERIE, initial_noise=0.1).reset(seed=1)
     assert np.array_equal(a, c)
     assert not np.array_equal(a, b)
 
 
 def test_same_seed_reproduces_trajectory() -> None:
     def trajectory(seed: int) -> list[np.ndarray]:
-        sim = make_sim(MENAGERIE)
+        sim = make_sim(MENAGERIE, initial_noise=0.05)
         obs = [sim.reset(seed=seed).copy()]
         for _ in range(5):
             obs.append(sim.step(np.zeros(12, dtype=np.float32)).observation.copy())
@@ -135,7 +134,14 @@ def test_use_before_load_raises() -> None:
 def test_unknown_task_raises() -> None:
     sim = MuJoCoSim()
     with pytest.raises(ValueError, match="Unknown task"):
-        sim.load({"name": "x", "model": str(CART_POLE)}, {"task": {"name": "nope"}})
+        sim.load(
+            {"name": "x", "model": str(CART_POLE)},
+            {
+                "task": {"name": "nope"},
+                "time_limit": 10.0,
+                "initial_noise": 0.0,
+            },
+        )
 
 
 def test_berkeley_humanoid_rolls_out() -> None:
@@ -218,3 +224,28 @@ def test_initial_noise_randomizes_unseeded_resets() -> None:
     d = noisy.reset()
     assert not np.array_equal(c, d)
     noisy.close()
+
+
+def test_initial_noise_requires_freejoint() -> None:
+    sim = make_sim(CART_POLE, initial_noise=0.1)
+    with pytest.raises(ValueError, match="freejoint"):
+        sim.reset()
+    sim.close()
+
+
+def test_load_requires_task_name() -> None:
+    sim = MuJoCoSim()
+    with pytest.raises(ValueError, match="task"):
+        sim.load(
+            {"name": "x", "model": str(CART_POLE)},
+            {"time_limit": 10.0, "initial_noise": 0.0},
+        )
+
+
+def test_load_requires_time_limit_and_initial_noise() -> None:
+    sim = MuJoCoSim()
+    with pytest.raises(ValueError, match="Missing sim config keys"):
+        sim.load(
+            {"name": "x", "model": str(CART_POLE)},
+            {"task": {"name": "survive", "params": {}}},
+        )

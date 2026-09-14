@@ -3,10 +3,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import numpy as np
 import pytest
 from hydra import compose, initialize
 from omegaconf import DictConfig
 
+from weir.algo.ppo import PPOAlgorithm
 from weir.cli.eval import run_eval
 from weir.cli.train import run
 from weir.core.run import Run
@@ -16,6 +18,17 @@ from weir.envs.wrappers.randomized import RandomizedSim
 
 ROOT = Path(__file__).parents[2]
 CONFIG_RELATIVE = str(Path(os.path.relpath(CONFIG_DIR, Path(__file__).parent)))
+
+RANDOMIZATION = {
+    "mass_scale": [0.8, 1.2],
+    "friction_scale": [0.5, 1.5],
+    "damping_scale": [0.5, 1.5],
+    "noise_std": 0.0,
+    "action_noise_std": 0.0,
+    "latency_steps": 0,
+    "perturbation_force": 0.0,
+    "perturbation_prob": 0.0,
+}
 
 
 def make_config(overrides: list[str] | None = None) -> DictConfig:
@@ -140,6 +153,29 @@ def test_run_resumes_from_checkpoint(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
 
 def test_build_sim_wraps_when_robust() -> None:
-    assert isinstance(Run.build_sim({"plugin": "mujoco"}), MuJoCoSim)
-    hardened = Run.build_sim({"plugin": "mujoco", "robust": True, "randomization": {}})
+    assert isinstance(Run.build_sim({"plugin": "mujoco", "robust": False}), MuJoCoSim)
+    hardened = Run.build_sim({"plugin": "mujoco", "robust": True, "randomization": RANDOMIZATION})
     assert isinstance(hardened, RandomizedSim)
+
+
+def test_run_is_reproducible_with_seed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    overrides = ["train.total_steps=64", "algo.n_steps=32"]
+
+    def train_once(subdir: str, seed: int) -> Path:
+        run_dir = tmp_path / subdir
+        run_dir.mkdir()
+        monkeypatch.chdir(run_dir)
+        run(make_config([*overrides, f"train.seed={seed}"]))
+        return run_dir / "checkpoint.zip"
+
+    def deterministic_actions(checkpoint: Path) -> np.ndarray:
+        algo = PPOAlgorithm()
+        algo.load(checkpoint)
+        return algo.act(np.zeros(4, dtype=np.float32), deterministic=True)
+
+    first = train_once("first", seed=7)
+    second = train_once("second", seed=7)
+    different = train_once("different", seed=8)
+
+    assert np.array_equal(deterministic_actions(first), deterministic_actions(second))
+    assert not np.array_equal(deterministic_actions(first), deterministic_actions(different))

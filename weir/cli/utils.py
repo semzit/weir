@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from hydra import compose, initialize
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
-from weir.core.utils import CONFIG_DIR, log_event
+from weir.core.utils import CONFIG_DIR, config_to_dict, log_event
 
 logger = logging.getLogger("weir")
 
@@ -21,6 +21,11 @@ CONFIG_RELATIVE = str(os.path.relpath(CONFIG_DIR, Path(__file__).parent))
 def setup_logging() -> None:
     """Configure INFO-level structured logging shared by all entry points."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+
+def load_config_section(name: str, *path_keys: str) -> dict[str, Any]:
+    """Load a single Hydra config-group file (e.g. ``algo/ppo``) as a plain dict."""
+    return config_to_dict(OmegaConf.load(CONFIG_DIR / f"{name}.yaml"), *path_keys)
 
 
 def compose_config(agent: str, task: str, overrides: list[str] | None = None) -> DictConfig:

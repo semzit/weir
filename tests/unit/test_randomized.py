@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from weir.core.contracts import DomainRandomizable, SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
@@ -10,13 +11,28 @@ from weir.envs.wrappers.randomized import RandomizedSim
 CART_POLE = MODELS_DIR / "cartpole.xml"
 BERKELEY = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.xml"
 
+FULL_CONFIG = {
+    "mass_scale": [0.8, 1.2],
+    "friction_scale": [0.5, 1.5],
+    "damping_scale": [0.5, 1.5],
+    "noise_std": 0.0,
+    "action_noise_std": 0.0,
+    "latency_steps": 0,
+    "perturbation_force": 0.0,
+    "perturbation_prob": 0.0,
+}
+
 
 def make_wrapped(config: dict, model_path=CART_POLE) -> RandomizedSim:
     inner = MuJoCoSim()
-    sim = RandomizedSim(inner, config)
+    sim = RandomizedSim(inner, {**FULL_CONFIG, **config})
     sim.load(
         {"name": "test", "model": str(model_path)},
-        {"task": {"name": "survive", "params": {}}},
+        {
+            "task": {"name": "survive", "params": {}},
+            "time_limit": 10.0,
+            "initial_noise": 0.0,
+        },
     )
     return sim
 
@@ -25,7 +41,11 @@ def make_bare(model_path=CART_POLE) -> MuJoCoSim:
     sim = MuJoCoSim()
     sim.load(
         {"name": "test", "model": str(model_path)},
-        {"task": {"name": "survive", "params": {}}},
+        {
+            "task": {"name": "survive", "params": {}},
+            "time_limit": 10.0,
+            "initial_noise": 0.0,
+        },
     )
     return sim
 
@@ -36,14 +56,25 @@ def _assert_sim_conformance(sim: SimBackend) -> None:
 
 
 def test_wrapped_sim_conforms_to_protocol() -> None:
-    _assert_sim_conformance(make_wrapped({}))
+    _assert_sim_conformance(make_wrapped(FULL_CONFIG))
 
 
 def test_mujoco_sim_is_domain_randomizable() -> None:
     assert isinstance(make_bare(CART_POLE), DomainRandomizable)
 
 
-def test_empty_config_is_pass_through() -> None:
+def test_neutral_config_is_pass_through() -> None:
+    neutral = {
+        "mass_scale": [1.0, 1.0],
+        "friction_scale": [1.0, 1.0],
+        "damping_scale": [1.0, 1.0],
+        "noise_std": 0.0,
+        "action_noise_std": 0.0,
+        "latency_steps": 0,
+        "perturbation_force": 0.0,
+        "perturbation_prob": 0.0,
+    }
+
     def roll(sim: SimBackend) -> list[np.ndarray]:
         obs = [sim.reset(seed=3).copy()]
         action = np.zeros(12, dtype=np.float32)
@@ -52,8 +83,13 @@ def test_empty_config_is_pass_through() -> None:
         return obs
 
     bare = roll(make_bare(BERKELEY))
-    wrapped = roll(make_wrapped({}, BERKELEY))
+    wrapped = roll(make_wrapped(neutral, BERKELEY))
     assert np.array_equal(bare, wrapped)
+
+
+def test_missing_randomization_keys_raise() -> None:
+    with pytest.raises(ValueError, match="missing keys"):
+        RandomizedSim(MuJoCoSim(), {})
 
 
 def test_observation_noise_is_zero_mean() -> None:

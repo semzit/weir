@@ -13,6 +13,22 @@ from torch import nn
 from weir.algo.utils import DeterministicPolicy, SpacesOnly
 from weir.core.contracts import AlgorithmPlugin, Shape
 
+_REQUIRED_KEYS = (
+    "net_arch",
+    "learning_rate",
+    "n_steps",
+    "batch_size",
+    "n_epochs",
+    "gamma",
+    "gae_lambda",
+    "clip_range",
+    "ent_coef",
+    "vf_coef",
+    "max_grad_norm",
+    "device",
+    "n_envs",
+)
+
 
 class PPOAlgorithm(AlgorithmPlugin):
     """PPO via stable-baselines3, exposed behind the AlgorithmPlugin protocol."""
@@ -23,10 +39,15 @@ class PPOAlgorithm(AlgorithmPlugin):
         action_shape: Shape,
         config: dict[str, Any],
     ) -> None:
+        missing = [key for key in _REQUIRED_KEYS if key not in config]
+        if missing:
+            raise ValueError(f"Missing algorithm config keys: {missing}")
         self.observation_shape = observation_shape
         self.action_shape = action_shape
         self._checkpoint_freq: int | None = None
-        self._n_envs = int(config.get("n_envs", 1))
+        seed = config.get("seed")
+        self._seed = int(seed) if seed is not None else None
+        self._n_envs = int(config["n_envs"])
         checkpoint = config.get("checkpoint")
         if checkpoint:
             self._model = PPO.load(str(checkpoint))
@@ -34,22 +55,23 @@ class PPOAlgorithm(AlgorithmPlugin):
                 self._model.n_envs = self._n_envs
             return
         self._checkpoint_freq = config.get("checkpoint_freq")
-        net_arch = list(config.get("net_arch", [64, 64]))
+        net_arch = list(config["net_arch"])
         self._model = PPO(
             "MlpPolicy",
             SpacesOnly(observation_shape, action_shape),
             policy_kwargs={"net_arch": net_arch},
-            device=str(config.get("device", "auto")),
-            learning_rate=float(config.get("learning_rate", 3e-4)),
-            n_steps=int(config.get("n_steps", 2048)),
-            batch_size=int(config.get("batch_size", 64)),
-            n_epochs=int(config.get("n_epochs", 10)),
-            gamma=float(config.get("gamma", 0.99)),
-            gae_lambda=float(config.get("gae_lambda", 0.95)),
-            clip_range=float(config.get("clip_range", 0.2)),
-            ent_coef=float(config.get("ent_coef", 0.0)),
-            vf_coef=float(config.get("vf_coef", 0.5)),
-            max_grad_norm=float(config.get("max_grad_norm", 0.5)),
+            device=str(config["device"]),
+            learning_rate=float(config["learning_rate"]),
+            n_steps=int(config["n_steps"]),
+            batch_size=int(config["batch_size"]),
+            n_epochs=int(config["n_epochs"]),
+            gamma=float(config["gamma"]),
+            gae_lambda=float(config["gae_lambda"]),
+            clip_range=float(config["clip_range"]),
+            ent_coef=float(config["ent_coef"]),
+            vf_coef=float(config["vf_coef"]),
+            max_grad_norm=float(config["max_grad_norm"]),
+            seed=self._seed,
         )
         self._model.n_envs = self._n_envs
 
@@ -61,6 +83,8 @@ class PPOAlgorithm(AlgorithmPlugin):
     ) -> dict[str, float]:
         self._require_model()
         self._model.set_env(env)
+        if self._seed is not None:
+            self._model.set_random_seed(self._seed)
         if self._n_envs > 1:
             # SB3 2.9 allocates the rollout buffer at construction (n_envs=1);
             # recreate it for the vectorized environment.

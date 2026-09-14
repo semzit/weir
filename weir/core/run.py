@@ -30,9 +30,16 @@ class Run:
     @staticmethod
     def build_sim(sim_config: dict[str, Any]) -> SimBackend:
         """Construct the simulator named in config, wrapping it when hardened."""
+        if "robust" not in sim_config:
+            raise ValueError("sim config is missing the 'robust' key")
         sim = create_sim(str(sim_config["plugin"]))
-        if sim_config.get("robust", False):
-            sim = RandomizedSim(sim, sim_config.get("randomization", {}))
+        if sim_config["robust"]:
+            randomization = sim_config.get("randomization")
+            if randomization is None:
+                raise ValueError(
+                    "sim config is missing the 'randomization' block (required when robust)"
+                )
+            sim = RandomizedSim(sim, randomization)
         return sim
 
     @classmethod
@@ -52,7 +59,11 @@ class Run:
 
     def algorithm(self) -> AlgorithmPlugin:
         """Create the training algorithm plugin and load the checkpoint weights."""
-        plugin = self.plugin("algo") or "ppo"
+        plugin = self.plugin("algo")
+        if plugin is None:
+            raise ValueError(
+                f"No 'algo.plugin' in manifest ({MANIFEST_NAME}) next to {self._checkpoint}"
+            )
         algorithm = create_algorithm(plugin)
         algorithm.load(self._checkpoint)
         return algorithm

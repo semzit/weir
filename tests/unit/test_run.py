@@ -11,6 +11,17 @@ from weir.envs.utils import MODELS_DIR
 CART_POLE = MODELS_DIR / "cartpole.xml"
 BERKELEY = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.xml"
 
+RANDOMIZATION = {
+    "mass_scale": [0.8, 1.2],
+    "friction_scale": [0.5, 1.5],
+    "damping_scale": [0.5, 1.5],
+    "noise_std": 0.0,
+    "action_noise_std": 0.0,
+    "latency_steps": 0,
+    "perturbation_force": 0.0,
+    "perturbation_prob": 0.0,
+}
+
 
 def make_run(
     tmp_path: Path,
@@ -27,7 +38,13 @@ def make_run(
                 "version": 1,
                 "agent": {"name": agent_name, "model": str(model)},
                 "task": {"name": "survive", "params": {}},
-                "sim": {"plugin": "mujoco", "time_limit": 10.0},
+                "sim": {
+                    "plugin": "mujoco",
+                    "time_limit": 10.0,
+                    "initial_noise": 0.0,
+                    "robust": False,
+                    "randomization": RANDOMIZATION,
+                },
                 "algo": {"plugin": "ppo"},
                 "train": {"seed": 0, "total_steps": 100},
                 "observation_shape": {"dims": obs_dims, "dtype": "float32"},

@@ -103,6 +103,7 @@ def run(cfg: DictConfig) -> dict[str, Any]:
     sim_config = config_to_dict(cfg.sim)
     task = config_to_dict(cfg.task)
     algorithm_config = config_to_dict(cfg.algo, "checkpoint")
+    algorithm_config["seed"] = int(cfg.train.seed)
 
     sim = Run.build_sim(sim_config)
     algorithm = create_algorithm(str(algorithm_config["plugin"]))

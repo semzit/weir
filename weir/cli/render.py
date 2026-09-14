@@ -8,6 +8,7 @@ from typing import Any
 import imageio.v2 as imageio
 import numpy as np
 
+from weir.cli.utils import load_config_section
 from weir.core.contracts import AlgorithmPlugin, DomainRandomizable
 from weir.core.run import MANIFEST_NAME, Run
 from weir.core.utils import create_algorithm, resolve_model_path
@@ -210,22 +211,30 @@ def main(argv: list[str] | None = None) -> int:
 def _render_demo(args: argparse.Namespace) -> int:
     sim = MuJoCoSim()
     try:
-        model = args.model or "weir/models/cartpole.xml"
+        if not args.model:
+            raise ValueError("--model is required when rendering without a checkpoint")
+        if not args.task:
+            raise ValueError("--task is required when rendering without a checkpoint")
         sim.load(
-            {"name": "render", "model": resolve_model_path(model)},
+            {"name": "render", "model": resolve_model_path(args.model)},
             {
                 "task": {
-                    "name": args.task or "survive",
+                    "name": args.task,
                     "params": _parse_task_params(args.task_param),
                 },
                 "time_limit": 5.0,
+                "initial_noise": 0.0,
             },
         )
         algo = create_algorithm("ppo")
         if args.checkpoint:
             algo.load(args.checkpoint)
         else:
-            algo.configure(sim.observation_shape(), sim.action_shape(), {})
+            algo.configure(
+                sim.observation_shape(),
+                sim.action_shape(),
+                load_config_section("algo/ppo", "checkpoint"),
+            )
     except (RuntimeError, TypeError, ValueError) as error:
         sim.close()
         print(f"weir-render: {error}", file=sys.stderr)
