@@ -84,7 +84,9 @@ def run_export(
             f"No manifest ({MANIFEST_NAME}) next to {checkpoint}: this checkpoint "
             "predates run manifests; re-train to create one"
         )
-    plugin = run.plugin("algo") or "ppo"
+    plugin = run.plugin("algo")
+    if plugin is None:
+        raise ValueError(f"No 'algo.plugin' in manifest ({MANIFEST_NAME}) next to {checkpoint}")
     dim = run.obs_dim()
     if dim is None:
         raise ValueError(

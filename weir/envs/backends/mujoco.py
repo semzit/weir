@@ -6,6 +6,7 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from weir.core.configs import SimConfig
 from weir.core.contracts import Action, Observation, Shape, SimBackend, SimStep
 from weir.core.tasks import TASKS, Task
 
@@ -24,25 +25,24 @@ class MuJoCoSim(SimBackend):
         self._initial_noise = 0.0
 
     def load(self, agent_config: dict[str, Any], sim_config: dict[str, Any]) -> None:
+        cfg = SimConfig.model_validate(sim_config)
         model_path = str(agent_config["model"])
-        self._model = mujoco.MjModel.from_xml_path(model_path)
-        dt = sim_config.get("dt")
-        if dt is not None:
-            self._model.opt.timestep = float(dt)
-        self._data = mujoco.MjData(self._model)
-        task_config = sim_config.get("task", {})
-        task_name = str(task_config.get("name", "survive"))
-        task_params = dict(task_config.get("params", {}))
+        model = mujoco.MjModel.from_xml_path(model_path)
+        self._model = model
+        if cfg.dt is not None:
+            model.opt.timestep = cfg.dt
+        self._data = mujoco.MjData(model)
+        task_name = cfg.task.name
+        task_params = dict(cfg.task.params)
         try:
             task_type = TASKS[task_name]
         except KeyError as error:
             raise ValueError(f"Unknown task: {task_name!r}") from error
         if "nq" in inspect.signature(task_type).parameters and "nq" not in task_params:
-            model = self._require_model()
             task_params["nq"] = model.nq
         self._task = task_type(**task_params)
-        self._time_limit = float(sim_config.get("time_limit", float("inf")))
-        self._initial_noise = float(sim_config.get("initial_noise", 0.0))
+        self._time_limit = cfg.time_limit
+        self._initial_noise = cfg.initial_noise
 
     def reset(self, seed: int | None = None) -> Observation:
         model = self._require_model()
@@ -50,11 +50,12 @@ class MuJoCoSim(SimBackend):
         self._last_action = None
         self._last_observation = None
         mujoco.mj_resetData(model, data)
-        if seed is not None and model.nq > 7:
-            rng = np.random.default_rng(seed)
-            data.qpos[7:] += rng.normal(0.0, 0.05, size=model.nq - 7)
-            mujoco.mj_forward(model, data)
-        elif self._initial_noise > 0 and model.nq > 7:
+        if self._initial_noise > 0:
+            if model.nq <= 7:
+                raise ValueError(
+                    "initial_noise requires a freejoint (model.nq > 7); "
+                    f"this model has nq={model.nq}"
+                )
             rng = np.random.default_rng(seed)
             data.qpos[7:] += rng.normal(0.0, self._initial_noise, size=model.nq - 7)
             mujoco.mj_forward(model, data)
@@ -91,8 +92,10 @@ class MuJoCoSim(SimBackend):
         low = ctrlrange[:, 0].astype(np.float32)
         high = ctrlrange[:, 1].astype(np.float32)
         if np.all(low == high):
-            low = np.full(model.nu, -1.0, dtype=np.float32)
-            high = np.full(model.nu, 1.0, dtype=np.float32)
+            raise ValueError(
+                "Every actuator has a degenerate ctrlrange (low == high); "
+                "set an explicit range/ctrlrange on each actuator"
+            )
         return Shape(
             dims=(model.nu,),
             dtype="float32",

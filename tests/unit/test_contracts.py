@@ -2,30 +2,19 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from conftest import PPO_CONFIG
 
 from weir.algo.ppo import PPOAlgorithm
-from weir.core.contracts import AlgorithmPlugin, Shape, SimBackend
+from weir.core.contracts import AlgorithmPlugin, DomainRandomizable, Shape, SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
 
 
-def _assert_conformance(sim: SimBackend, algo: AlgorithmPlugin) -> None:
-    """Type-check only: forces pyright to verify structural conformance."""
-    _ = sim
-    _ = algo
-
-
 def test_implementations_conform_to_protocols() -> None:
-    _assert_conformance(MuJoCoSim(), PPOAlgorithm())
-
-
-def test_mujoco_sim_exposes_protocol_methods() -> None:
-    required = {"load", "reset", "step", "observation_shape", "action_shape", "close"}
-    assert not required.difference(MuJoCoSim.__dict__)
-
-
-def test_ppo_algorithm_exposes_protocol_methods() -> None:
-    required = {"configure", "learn", "act", "save", "load", "export_policy"}
-    assert not required.difference(PPOAlgorithm.__dict__)
+    # Both protocols are @runtime_checkable, so isinstance performs the
+    # structural conformance check at runtime.
+    assert isinstance(MuJoCoSim(), SimBackend)
+    assert isinstance(MuJoCoSim(), DomainRandomizable)
+    assert isinstance(PPOAlgorithm(), AlgorithmPlugin)
 
 
 def test_shape_defaults() -> None:
@@ -39,7 +28,7 @@ def test_ppo_algorithm_acts_in_shape() -> None:
     algo.configure(
         Shape(dims=(4,), dtype="float32"),
         Shape(dims=(1,), dtype="float32", low=np.array([-1.0]), high=np.array([1.0])),
-        {"n_steps": 64, "batch_size": 32},
+        PPO_CONFIG,
     )
     action = algo.act(np.zeros(4, dtype=np.float32))
     assert action.shape == (1,)
@@ -51,7 +40,7 @@ def test_ppo_algorithm_save_load_roundtrip(tmp_path: Path) -> None:
     algo.configure(
         Shape(dims=(4,), dtype="float32"),
         Shape(dims=(1,), dtype="float32", low=np.array([-1.0]), high=np.array([1.0])),
-        {"n_steps": 64, "batch_size": 32},
+        PPO_CONFIG,
     )
     path = tmp_path / "model.zip"
     algo.save(path)
@@ -71,7 +60,7 @@ def test_ppo_algorithm_export_policy(tmp_path: Path) -> None:
     algo.configure(
         Shape(dims=(4,), dtype="float32"),
         Shape(dims=(1,), dtype="float32", low=np.array([-1.0]), high=np.array([1.0])),
-        {"n_steps": 64, "batch_size": 32},
+        PPO_CONFIG,
     )
     policy = algo.export_policy()
     with torch.no_grad():

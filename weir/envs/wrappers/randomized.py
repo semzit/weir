@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 
+from weir.core.configs import RandomizationConfig
 from weir.core.contracts import Action, DomainRandomizable, Observation, Shape, SimBackend, SimStep
 
 _FIELD_MAP = {
@@ -19,13 +20,13 @@ class RandomizedSim(SimBackend):
 
     Wraps an inner SimBackend and layers on, per episode: domain randomization
     (via the optional DomainRandomizable capability), observation/action noise,
-    action latency, and random perturbation pushes. With an empty config it is a
-    pure pass-through.
+    action latency, and random perturbation pushes. The randomization config
+    must declare every knob explicitly; nothing is silently defaulted.
     """
 
     def __init__(self, inner: SimBackend, config: dict[str, Any]) -> None:
         self._inner = inner
-        self._config = config
+        self._config = RandomizationConfig.model_validate(config).model_dump()
         self._rng = np.random.default_rng(0)
         self._latency: deque[np.ndarray] = deque()
 
@@ -41,16 +42,16 @@ class RandomizedSim(SimBackend):
 
     def step(self, actions: Action) -> SimStep:
         action = np.asarray(actions, dtype=np.float32)
-        action = self._add_noise(action, self._cfg("action_noise_std", 0.0))
+        action = self._add_noise(action, self._config["action_noise_std"])
         action = self._apply_latency(action)
         inner = self._inner
-        perturbation_force = self._cfg("perturbation_force", 0.0)
+        perturbation_force = self._config["perturbation_force"]
         if isinstance(inner, DomainRandomizable):
             self._maybe_perturb(inner, perturbation_force)
         result = inner.step(action)
         if isinstance(inner, DomainRandomizable) and perturbation_force > 0:
             inner.apply_perturbation(np.zeros(3))
-        observation = self._add_noise(result.observation, self._cfg("noise_std", 0.0))
+        observation = self._add_noise(result.observation, self._config["noise_std"])
         return SimStep(
             observation=observation,
             reward=result.reward,
@@ -67,16 +68,11 @@ class RandomizedSim(SimBackend):
     def close(self) -> None:
         self._inner.close()
 
-    def _cfg(self, key: str, default: float) -> float:
-        return float(self._config.get(key, default))
-
     def _randomize_domain(self) -> None:
         inner = self._inner
         assert isinstance(inner, DomainRandomizable)
         params = inner.domain_params()
         for key, field in _FIELD_MAP.items():
-            if key not in self._config:
-                continue
             low, high = self._config[key]
             factor = self._rng.uniform(float(low), float(high))
             params[field] = np.asarray(params[field]) * factor
@@ -90,7 +86,7 @@ class RandomizedSim(SimBackend):
         ).astype(np.float32)
 
     def _apply_latency(self, action: np.ndarray) -> np.ndarray:
-        delay = int(self._config.get("latency_steps", 0))
+        delay = int(self._config["latency_steps"])
         if delay <= 0:
             return action
         self._latency.append(action.copy())
@@ -99,7 +95,7 @@ class RandomizedSim(SimBackend):
         return self._latency.popleft()
 
     def _maybe_perturb(self, inner: DomainRandomizable, force: float) -> None:
-        prob = self._cfg("perturbation_prob", 0.0)
+        prob = self._config["perturbation_prob"]
         if force <= 0 or self._rng.random() >= prob:
             return
         inner.apply_perturbation(self._rng.normal(0.0, force, size=3))

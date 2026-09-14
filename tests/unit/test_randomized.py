@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
+from conftest import NEUTRAL_RANDOMIZATION, RANDOMIZATION
 
 from weir.core.contracts import DomainRandomizable, SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
@@ -13,10 +15,14 @@ BERKELEY = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.x
 
 def make_wrapped(config: dict, model_path=CART_POLE) -> RandomizedSim:
     inner = MuJoCoSim()
-    sim = RandomizedSim(inner, config)
+    sim = RandomizedSim(inner, {**RANDOMIZATION, **config})
     sim.load(
         {"name": "test", "model": str(model_path)},
-        {"task": {"name": "survive", "params": {}}},
+        {
+            "task": {"name": "survive", "params": {}},
+            "time_limit": 10.0,
+            "initial_noise": 0.0,
+        },
     )
     return sim
 
@@ -25,25 +31,24 @@ def make_bare(model_path=CART_POLE) -> MuJoCoSim:
     sim = MuJoCoSim()
     sim.load(
         {"name": "test", "model": str(model_path)},
-        {"task": {"name": "survive", "params": {}}},
+        {
+            "task": {"name": "survive", "params": {}},
+            "time_limit": 10.0,
+            "initial_noise": 0.0,
+        },
     )
     return sim
 
 
-def _assert_sim_conformance(sim: SimBackend) -> None:
-    """Type-check only: forces pyright to verify structural conformance."""
-    _ = sim
-
-
 def test_wrapped_sim_conforms_to_protocol() -> None:
-    _assert_sim_conformance(make_wrapped({}))
+    assert isinstance(make_wrapped(RANDOMIZATION), SimBackend)
 
 
 def test_mujoco_sim_is_domain_randomizable() -> None:
     assert isinstance(make_bare(CART_POLE), DomainRandomizable)
 
 
-def test_empty_config_is_pass_through() -> None:
+def test_neutral_config_is_pass_through() -> None:
     def roll(sim: SimBackend) -> list[np.ndarray]:
         obs = [sim.reset(seed=3).copy()]
         action = np.zeros(12, dtype=np.float32)
@@ -52,8 +57,13 @@ def test_empty_config_is_pass_through() -> None:
         return obs
 
     bare = roll(make_bare(BERKELEY))
-    wrapped = roll(make_wrapped({}, BERKELEY))
+    wrapped = roll(make_wrapped(NEUTRAL_RANDOMIZATION, BERKELEY))
     assert np.array_equal(bare, wrapped)
+
+
+def test_missing_randomization_keys_raise() -> None:
+    with pytest.raises(ValueError, match="validation error"):
+        RandomizedSim(MuJoCoSim(), {})
 
 
 def test_observation_noise_is_zero_mean() -> None:

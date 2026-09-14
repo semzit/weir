@@ -15,6 +15,6 @@
   </worldbody>
 
   <actuator>
-    <motor name="cart_motor" joint="cart_x" gear="50"/>
+    <motor name="cart_motor" joint="cart_x" gear="50" ctrlrange="-1 1"/>
   </actuator>
 </mujoco>

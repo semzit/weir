@@ -6,6 +6,7 @@ from pathlib import Path
 import imageio.v2 as imageio
 import numpy as np
 import pytest
+from conftest import PPO_CONFIG
 
 from weir.cli.render import main as render_main
 from weir.cli.render import render_episode
@@ -20,24 +21,13 @@ def make_sim() -> MuJoCoSim:
     sim = MuJoCoSim()
     sim.load(
         {"name": "cartpole", "model": str(CART_POLE)},
-        {"task": {"name": "survive", "params": {}}, "time_limit": 5.0},
+        {
+            "task": {"name": "survive", "params": {}},
+            "time_limit": 5.0,
+            "initial_noise": 0.0,
+        },
     )
     return sim
-
-
-def rendering_available() -> bool:
-    sim = make_sim()
-    try:
-        sim.render_frame(width=8, height=8)
-    except RuntimeError:
-        return False
-    finally:
-        sim.close()
-    return True
-
-
-if not rendering_available():
-    pytest.skip("offscreen rendering unavailable in this environment", allow_module_level=True)
 
 
 def test_render_frame_returns_rgb_uint8() -> None:
@@ -64,7 +54,7 @@ def test_render_frame_resizes_renderer() -> None:
 def test_render_episode_writes_mp4(tmp_path: Path) -> None:
     sim = make_sim()
     algo = create_algorithm("ppo")
-    algo.configure(sim.observation_shape(), sim.action_shape(), {})
+    algo.configure(sim.observation_shape(), sim.action_shape(), PPO_CONFIG)
     output = tmp_path / "episode.mp4"
     result = render_episode(
         sim,
@@ -85,7 +75,7 @@ def test_render_episode_writes_mp4(tmp_path: Path) -> None:
 def test_render_episode_stops_at_termination(tmp_path: Path) -> None:
     sim = make_sim()
     algo = create_algorithm("ppo")
-    algo.configure(sim.observation_shape(), sim.action_shape(), {})
+    algo.configure(sim.observation_shape(), sim.action_shape(), PPO_CONFIG)
     output = tmp_path / "short.mp4"
     render_episode(
         sim,
@@ -104,7 +94,7 @@ def test_render_episode_stops_at_termination(tmp_path: Path) -> None:
 def test_render_episode_paces_frames_to_realtime(tmp_path: Path) -> None:
     sim = make_sim()  # cartpole: dt = 0.02
     algo = create_algorithm("ppo")
-    algo.configure(sim.observation_shape(), sim.action_shape(), {})
+    algo.configure(sim.observation_shape(), sim.action_shape(), PPO_CONFIG)
     output = tmp_path / "paced.mp4"
     render_episode(
         sim,
@@ -351,7 +341,7 @@ def test_cli_rejects_malformed_task_param(tmp_path: Path, monkeypatch: pytest.Mo
     monkeypatch.setattr(
         sys,
         "argv",
-        ["weir-render", "--model", str(CART_POLE), "--task-param", "nq"],
+        ["weir-render", "--model", str(CART_POLE), "--task", "survive", "--task-param", "nq"],
     )
     assert render_main() == 1
 
@@ -360,6 +350,16 @@ def test_cli_rejects_unknown_task_param(tmp_path: Path, monkeypatch: pytest.Monk
     monkeypatch.setattr(
         sys,
         "argv",
-        ["weir-render", "--model", str(CART_POLE), "--task-param", "x=1"],
+        ["weir-render", "--model", str(CART_POLE), "--task", "survive", "--task-param", "x=1"],
     )
+    assert render_main() == 1
+
+
+def test_cli_requires_model_and_task_for_demo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["weir-render", "--model", str(CART_POLE)])
+    assert render_main() == 1
+
+    monkeypatch.setattr(sys, "argv", ["weir-render", "--task", "survive"])
     assert render_main() == 1

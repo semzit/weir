@@ -23,3 +23,14 @@ ambient
 
 _on_step  # SB3 BaseCallback override
 rollout_buffer  # SB3 model attribute reallocated for vectorized envs
+
+# Pydantic model fields in weir/core/configs.py — declared on the class,
+# consumed by the validation metaclass rather than read as variables
+model_config
+mass_scale
+friction_scale
+damping_scale
+noise_std
+action_noise_std
+latency_steps
+perturbation_prob

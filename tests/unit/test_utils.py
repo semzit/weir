@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pytest
 from omegaconf import DictConfig
 
 from weir.algo.utils import sample_action
@@ -107,13 +108,11 @@ def test_sample_action_in_bounds() -> None:
     assert np.allclose(midpoint, (low + high) / 2.0)
 
 
-def test_sample_action_without_bounds() -> None:
+def test_sample_action_without_bounds_raises() -> None:
     shape = Shape(dims=(1,), dtype="float32")
     rng = np.random.default_rng(0)
 
-    action = sample_action(shape, rng)
-    assert action.shape == (1,)
-    assert -1.0 <= action[0] <= 1.0
-
-    zero = sample_action(shape, rng, deterministic=True)
-    assert np.array_equal(zero, np.zeros(1, dtype=np.float32))
+    with pytest.raises(ValueError, match="no bounds"):
+        sample_action(shape, rng)
+    with pytest.raises(ValueError, match="no bounds"):
+        sample_action(shape, rng, deterministic=True)
