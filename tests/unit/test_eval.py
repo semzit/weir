@@ -125,16 +125,12 @@ def test_rollout_metrics_caps_episodes_at_max_steps() -> None:
     assert metrics["episodes_completed"] == 0.0
 
 
-def test_rollout_metrics_is_reproducible_with_same_seed() -> None:
+def test_rollout_metrics_is_seed_deterministic() -> None:
     first = rollout_metrics(SeededFakeSim(), FakeAlgorithm(), episodes=4, seed=7, max_steps=100)
     second = rollout_metrics(SeededFakeSim(), FakeAlgorithm(), episodes=4, seed=7, max_steps=100)
+    other = rollout_metrics(SeededFakeSim(), FakeAlgorithm(), episodes=4, seed=8, max_steps=100)
     assert first == second
-
-
-def test_rollout_metrics_may_differ_across_seeds() -> None:
-    first = rollout_metrics(SeededFakeSim(), FakeAlgorithm(), episodes=4, seed=0, max_steps=100)
-    second = rollout_metrics(SeededFakeSim(), FakeAlgorithm(), episodes=4, seed=1, max_steps=100)
-    assert first != second
+    assert first != other
 
 
 def test_cli_evaluates_and_prints_summary(

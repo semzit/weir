@@ -6,6 +6,7 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from weir.core.configs import SimConfig
 from weir.core.contracts import Action, Observation, Shape, SimBackend, SimStep
 from weir.core.tasks import TASKS, Task
 
@@ -24,21 +25,15 @@ class MuJoCoSim(SimBackend):
         self._initial_noise = 0.0
 
     def load(self, agent_config: dict[str, Any], sim_config: dict[str, Any]) -> None:
-        missing = [key for key in ("time_limit", "initial_noise") if key not in sim_config]
-        if missing:
-            raise ValueError(f"Missing sim config keys: {missing}")
+        cfg = SimConfig.model_validate(sim_config)
         model_path = str(agent_config["model"])
         model = mujoco.MjModel.from_xml_path(model_path)
         self._model = model
-        dt = sim_config.get("dt")
-        if dt is not None:
-            model.opt.timestep = float(dt)
+        if cfg.dt is not None:
+            model.opt.timestep = cfg.dt
         self._data = mujoco.MjData(model)
-        task_config = sim_config.get("task")
-        if not isinstance(task_config, dict) or not task_config.get("name"):
-            raise ValueError("sim_config must include a task with a 'name'")
-        task_name = str(task_config["name"])
-        task_params = dict(task_config.get("params", {}))
+        task_name = cfg.task.name
+        task_params = dict(cfg.task.params)
         try:
             task_type = TASKS[task_name]
         except KeyError as error:
@@ -46,8 +41,8 @@ class MuJoCoSim(SimBackend):
         if "nq" in inspect.signature(task_type).parameters and "nq" not in task_params:
             task_params["nq"] = model.nq
         self._task = task_type(**task_params)
-        self._time_limit = float(sim_config["time_limit"])
-        self._initial_noise = float(sim_config["initial_noise"])
+        self._time_limit = cfg.time_limit
+        self._initial_noise = cfg.initial_noise
 
     def reset(self, seed: int | None = None) -> Observation:
         model = self._require_model()

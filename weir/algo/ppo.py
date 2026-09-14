@@ -11,23 +11,8 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from torch import nn
 
 from weir.algo.utils import DeterministicPolicy, SpacesOnly
+from weir.core.configs import AlgorithmConfig
 from weir.core.contracts import AlgorithmPlugin, Shape
-
-_REQUIRED_KEYS = (
-    "net_arch",
-    "learning_rate",
-    "n_steps",
-    "batch_size",
-    "n_epochs",
-    "gamma",
-    "gae_lambda",
-    "clip_range",
-    "ent_coef",
-    "vf_coef",
-    "max_grad_norm",
-    "device",
-    "n_envs",
-)
 
 
 class PPOAlgorithm(AlgorithmPlugin):
@@ -39,38 +24,32 @@ class PPOAlgorithm(AlgorithmPlugin):
         action_shape: Shape,
         config: dict[str, Any],
     ) -> None:
-        missing = [key for key in _REQUIRED_KEYS if key not in config]
-        if missing:
-            raise ValueError(f"Missing algorithm config keys: {missing}")
+        cfg = AlgorithmConfig.model_validate(config)
         self.observation_shape = observation_shape
         self.action_shape = action_shape
-        self._checkpoint_freq: int | None = None
-        seed = config.get("seed")
-        self._seed = int(seed) if seed is not None else None
-        self._n_envs = int(config["n_envs"])
-        checkpoint = config.get("checkpoint")
-        if checkpoint:
-            self._model = PPO.load(str(checkpoint))
+        self._checkpoint_freq = cfg.checkpoint_freq
+        self._seed = cfg.seed
+        self._n_envs = cfg.n_envs
+        if cfg.checkpoint:
+            self._model = PPO.load(cfg.checkpoint)
             if self._n_envs != 1:
                 self._model.n_envs = self._n_envs
             return
-        self._checkpoint_freq = config.get("checkpoint_freq")
-        net_arch = list(config["net_arch"])
         self._model = PPO(
             "MlpPolicy",
             SpacesOnly(observation_shape, action_shape),
-            policy_kwargs={"net_arch": net_arch},
-            device=str(config["device"]),
-            learning_rate=float(config["learning_rate"]),
-            n_steps=int(config["n_steps"]),
-            batch_size=int(config["batch_size"]),
-            n_epochs=int(config["n_epochs"]),
-            gamma=float(config["gamma"]),
-            gae_lambda=float(config["gae_lambda"]),
-            clip_range=float(config["clip_range"]),
-            ent_coef=float(config["ent_coef"]),
-            vf_coef=float(config["vf_coef"]),
-            max_grad_norm=float(config["max_grad_norm"]),
+            policy_kwargs={"net_arch": cfg.net_arch},
+            device=cfg.device,
+            learning_rate=cfg.learning_rate,
+            n_steps=cfg.n_steps,
+            batch_size=cfg.batch_size,
+            n_epochs=cfg.n_epochs,
+            gamma=cfg.gamma,
+            gae_lambda=cfg.gae_lambda,
+            clip_range=cfg.clip_range,
+            ent_coef=cfg.ent_coef,
+            vf_coef=cfg.vf_coef,
+            max_grad_norm=cfg.max_grad_norm,
             seed=self._seed,
         )
         self._model.n_envs = self._n_envs

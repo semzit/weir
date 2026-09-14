@@ -244,7 +244,7 @@ def test_load_requires_task_name() -> None:
 
 def test_load_requires_time_limit_and_initial_noise() -> None:
     sim = MuJoCoSim()
-    with pytest.raises(ValueError, match="Missing sim config keys"):
+    with pytest.raises(ValueError, match="validation error"):
         sim.load(
             {"name": "x", "model": str(CART_POLE)},
             {"task": {"name": "survive", "params": {}}},

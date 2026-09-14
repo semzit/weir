@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 
+from weir.core.configs import RandomizationConfig
 from weir.core.contracts import Action, DomainRandomizable, Observation, Shape, SimBackend, SimStep
 
 _FIELD_MAP = {
@@ -12,17 +13,6 @@ _FIELD_MAP = {
     "friction_scale": "geom_friction",
     "damping_scale": "dof_damping",
 }
-
-_REQUIRED_KEYS = (
-    "mass_scale",
-    "friction_scale",
-    "damping_scale",
-    "noise_std",
-    "action_noise_std",
-    "latency_steps",
-    "perturbation_force",
-    "perturbation_prob",
-)
 
 
 class RandomizedSim(SimBackend):
@@ -35,11 +25,8 @@ class RandomizedSim(SimBackend):
     """
 
     def __init__(self, inner: SimBackend, config: dict[str, Any]) -> None:
-        missing = [key for key in _REQUIRED_KEYS if key not in config]
-        if missing:
-            raise ValueError(f"Randomization config missing keys: {missing}")
         self._inner = inner
-        self._config = config
+        self._config = RandomizationConfig.model_validate(config).model_dump()
         self._rng = np.random.default_rng(0)
         self._latency: deque[np.ndarray] = deque()
 

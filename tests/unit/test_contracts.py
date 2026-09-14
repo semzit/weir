@@ -2,26 +2,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from conftest import PPO_CONFIG
 
 from weir.algo.ppo import PPOAlgorithm
 from weir.core.contracts import AlgorithmPlugin, DomainRandomizable, Shape, SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
-
-PPO_CONFIG = {
-    "net_arch": [64, 64],
-    "learning_rate": 3e-4,
-    "n_steps": 64,
-    "batch_size": 32,
-    "n_epochs": 10,
-    "gamma": 0.99,
-    "gae_lambda": 0.95,
-    "clip_range": 0.2,
-    "ent_coef": 0.0,
-    "vf_coef": 0.5,
-    "max_grad_norm": 0.5,
-    "device": "cpu",
-    "n_envs": 1,
-}
 
 
 def test_implementations_conform_to_protocols() -> None:

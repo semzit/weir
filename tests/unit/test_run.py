@@ -4,23 +4,13 @@ import json
 from pathlib import Path
 
 import pytest
+from conftest import RANDOMIZATION
 
 from weir.core.run import Run
 from weir.envs.utils import MODELS_DIR
 
 CART_POLE = MODELS_DIR / "cartpole.xml"
 BERKELEY = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.xml"
-
-RANDOMIZATION = {
-    "mass_scale": [0.8, 1.2],
-    "friction_scale": [0.5, 1.5],
-    "damping_scale": [0.5, 1.5],
-    "noise_std": 0.0,
-    "action_noise_std": 0.0,
-    "latency_steps": 0,
-    "perturbation_force": 0.0,
-    "perturbation_prob": 0.0,
-}
 
 
 def make_run(

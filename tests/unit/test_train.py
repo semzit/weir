@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from conftest import RANDOMIZATION
 from hydra import compose, initialize
 from omegaconf import DictConfig
 
@@ -18,17 +19,6 @@ from weir.envs.wrappers.randomized import RandomizedSim
 
 ROOT = Path(__file__).parents[2]
 CONFIG_RELATIVE = str(Path(os.path.relpath(CONFIG_DIR, Path(__file__).parent)))
-
-RANDOMIZATION = {
-    "mass_scale": [0.8, 1.2],
-    "friction_scale": [0.5, 1.5],
-    "damping_scale": [0.5, 1.5],
-    "noise_std": 0.0,
-    "action_noise_std": 0.0,
-    "latency_steps": 0,
-    "perturbation_force": 0.0,
-    "perturbation_prob": 0.0,
-}
 
 
 def make_config(overrides: list[str] | None = None) -> DictConfig:

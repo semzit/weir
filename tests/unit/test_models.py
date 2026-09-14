@@ -13,33 +13,20 @@ def _model_path(name: str) -> Path:
 
 
 @pytest.mark.parametrize(
-    "xml_path",
+    "xml_path,nu,nq",
     [
-        _model_path("cartpole.xml"),
-        _model_path("menagerie/berkeley_humanoid/berkeley_humanoid.xml"),
+        (_model_path("cartpole.xml"), 1, 2),
+        (_model_path("menagerie/berkeley_humanoid/berkeley_humanoid.xml"), 12, 19),
     ],
     ids=["cartpole", "berkeley_humanoid"],
 )
-def test_model_loads_and_steps(xml_path: Path) -> None:
+def test_model_loads_and_steps(xml_path: Path, nu: int, nq: int) -> None:
     model = mujoco.MjModel.from_xml_path(str(xml_path))
     data = mujoco.MjData(model)
     mujoco.mj_step(model, data)
     assert data.time > 0.0
-    assert model.nu > 0
-    assert model.nq > 0
-
-
-def test_cartpole_has_single_actuator() -> None:
-    model = mujoco.MjModel.from_xml_path(str(_model_path("cartpole.xml")))
-    assert model.nu == 1
-
-
-def test_berkeley_humanoid_morphology() -> None:
-    model = mujoco.MjModel.from_xml_path(
-        str(_model_path("menagerie/berkeley_humanoid/berkeley_humanoid.xml"))
-    )
-    assert model.nq == 19
-    assert model.nu == 12
+    assert model.nu == nu
+    assert model.nq == nq
 
 
 def test_berkeley_humanoid_uses_position_actuators() -> None:
