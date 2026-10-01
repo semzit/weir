@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol
 
-from weir.core.contracts import Action, Observation
+from weir.core.interfaces import Action, Observation
 from weir.core.tasks.balance import BalanceTask
 from weir.core.tasks.forward_gait import WalkForwardTask
 from weir.core.tasks.standing import StandingTask

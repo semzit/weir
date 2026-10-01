@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from weir.core.contracts import Action, Observation
+from weir.core.interfaces import Action, Observation
 
 
 @dataclass(slots=True)

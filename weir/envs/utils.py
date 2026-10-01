@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from gymnasium import spaces
 
-from weir.core.contracts import Shape
+from weir.core.interfaces import Shape
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 

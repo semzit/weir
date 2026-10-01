@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from weir.core.contracts import Action, Observation
+from weir.core.interfaces import Action, Observation
 from weir.core.tasks.utils import rotate_vector
 
 

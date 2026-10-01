@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 
 from weir.core.configs import RandomizationConfig
-from weir.core.contracts import Action, DomainRandomizable, Observation, Shape, SimBackend, SimStep
+from weir.core.interfaces import Action, DomainRandomizable, Observation, Shape, SimBackend, SimStep
 
 _FIELD_MAP = {
     "mass_scale": "body_mass",

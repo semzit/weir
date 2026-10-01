@@ -4,7 +4,7 @@
 .coverage
 __pycache__/
 *.py[cod]
-docs/*
+docs/
 checkpoint.zip
 outputs/
 *.mp4

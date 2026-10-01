@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from weir.cli.utils import compose_config, guarded_main
-from weir.core.contracts import AlgorithmPlugin, SimBackend
+from weir.core.interfaces import AlgorithmPlugin, SimBackend
 from weir.core.run import MANIFEST_NAME, Run
 from weir.core.utils import config_to_dict, create_algorithm
 

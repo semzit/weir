@@ -12,7 +12,7 @@ from torch import nn
 
 from weir.algo.utils import DeterministicPolicy, SpacesOnly
 from weir.core.configs import AlgorithmConfig
-from weir.core.contracts import AlgorithmPlugin, Shape
+from weir.core.interfaces import AlgorithmPlugin, Shape
 
 
 class PPOAlgorithm(AlgorithmPlugin):

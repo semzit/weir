@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from conftest import NEUTRAL_RANDOMIZATION, RANDOMIZATION
 
-from weir.core.contracts import DomainRandomizable, SimBackend
+from weir.core.interfaces import DomainRandomizable, SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
 from weir.envs.utils import MODELS_DIR
 from weir.envs.wrappers.randomized import RandomizedSim

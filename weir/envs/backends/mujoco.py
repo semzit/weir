@@ -7,7 +7,7 @@ import mujoco
 import numpy as np
 
 from weir.core.configs import SimConfig
-from weir.core.contracts import Action, Observation, Shape, SimBackend, SimStep
+from weir.core.interfaces import Action, Observation, Shape, SimBackend, SimStep
 from weir.core.tasks import TASKS, Task
 
 

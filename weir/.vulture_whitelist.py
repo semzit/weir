@@ -1,4 +1,4 @@
-# Vulture whitelist: names that are used structurally — gymnasium/API contracts,
+# Vulture whitelist: names that are used structurally — gymnasium/API interfaces,
 # SB3 policy internals, MuJoCo struct fields — but never "called" by our code.
 # Remove an entry only if the code it refers to is actually gone.
 

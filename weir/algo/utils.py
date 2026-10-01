@@ -6,7 +6,7 @@ from gymnasium import Env
 from stable_baselines3.common.policies import ActorCriticPolicy
 from torch import nn
 
-from weir.core.contracts import Shape
+from weir.core.interfaces import Shape
 from weir.envs.utils import shape_to_box
 
 

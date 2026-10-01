@@ -6,7 +6,7 @@ import pytest
 from omegaconf import DictConfig
 
 from weir.algo.utils import sample_action
-from weir.core.contracts import Shape
+from weir.core.interfaces import Shape
 from weir.core.utils import (
     CONFIG_DIR,
     ROOT,
@@ -18,7 +18,7 @@ from weir.envs.utils import MODELS_DIR, resolve_model_asset
 
 
 def test_root_aligns_with_repo() -> None:
-    assert (ROOT / "weir" / "core" / "contracts.py").exists()
+    assert (ROOT / "weir" / "core" / "interfaces.py").exists()
 
 
 def test_subfolder_paths_exist() -> None:
