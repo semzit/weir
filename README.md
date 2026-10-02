@@ -93,7 +93,7 @@ configs/
 └── algo/              # one algorithm per file: ppo.yaml
 ```
 
-Full reference: [`docs/configuration.md`](docs/configuration.md).
+Full reference: [`configs/README.md`](configs/README.md).
 
 Any value can be overridden on the command line:
 

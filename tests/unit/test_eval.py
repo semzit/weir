@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from weir.cli.eval import main, rollout_metrics
-from weir.core.contracts import Shape, SimStep
+from weir.core.interfaces import Shape, SimStep
 
 
 class FakeSim:

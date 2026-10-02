@@ -4,7 +4,7 @@ from typing import Any, SupportsFloat
 
 from gymnasium import Env
 
-from weir.core.contracts import Action, Observation, SimBackend
+from weir.core.interfaces import Action, Observation, SimBackend
 from weir.envs.utils import shape_to_box
 
 

@@ -7,7 +7,7 @@ from typing import Any, cast
 from omegaconf import OmegaConf
 
 from weir.algo.ppo import PPOAlgorithm
-from weir.core.contracts import AlgorithmPlugin, SimBackend
+from weir.core.interfaces import AlgorithmPlugin, SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
 
 ROOT = Path(__file__).resolve().parents[2]

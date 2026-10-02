@@ -5,7 +5,7 @@ import torch
 from conftest import PPO_CONFIG
 
 from weir.algo.ppo import PPOAlgorithm
-from weir.core.contracts import AlgorithmPlugin, DomainRandomizable, Shape, SimBackend
+from weir.core.interfaces import AlgorithmPlugin, DomainRandomizable, Shape, SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
 
 

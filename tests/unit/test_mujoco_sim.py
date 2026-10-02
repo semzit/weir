@@ -7,7 +7,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from weir.core.contracts import SimStep
+from weir.core.interfaces import SimStep
 from weir.envs.backends.mujoco import MuJoCoSim
 from weir.envs.utils import MODELS_DIR
 

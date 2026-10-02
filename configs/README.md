@@ -1,30 +1,29 @@
 # Configuration guide
 
-Everything about a run lives in YAML under `configs/`, composed by Hydra at launch.
+Everything about a run lives in YAML under this directory, composed by Hydra at launch.
 This guide explains how the system fits together and what every knob does.
 
 ## How composition works
 
-`configs/train.yaml` is the entry point. Its `defaults` list picks exactly one file
+`train.yaml` is the entry point. Its `defaults` list picks exactly one file
 from each of four config groups, and Hydra merges them into a single config:
 
 ```yaml
-# configs/train.yaml
+# train.yaml
 defaults:
   - _self_
-  - agent: cartpole      # -> configs/agent/cartpole.yaml
-  - task: balance        # -> configs/task/balance.yaml
-  - sim: mujoco          # -> configs/sim/mujoco.yaml
-  - algo: ppo            # -> configs/algo/ppo.yaml
+  - agent: cartpole      # -> agent/cartpole.yaml
+  - task: balance        # -> task/balance.yaml
+  - sim: mujoco          # -> sim/mujoco.yaml
+  - algo: ppo            # -> algo/ppo.yaml
 ```
 
 ```
-configs/
-├── train.yaml         # composition + train.seed, train.total_steps
-├── agent/             # one robot per file: cartpole.yaml, humanoid.yaml
-├── task/              # one objective per file: balance, standing, walk_forward, ...
-├── sim/               # one backend per file: mujoco.yaml
-└── algo/              # one algorithm per file: ppo.yaml
+agent/               # one robot per file: cartpole.yaml, humanoid.yaml
+task/                # one objective per file: balance, standing, walk_forward, ...
+sim/                 # one backend per file: mujoco.yaml
+algo/                # one algorithm per file: ppo.yaml
+train.yaml           # composition + train.seed, train.total_steps
 ```
 
 Each group file carries a `name`/`plugin` key that the factory maps to a concrete
@@ -58,7 +57,7 @@ Rules:
 
 ## Reference
 
-### `configs/train.yaml`
+### `train.yaml`
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -69,14 +68,14 @@ Rules:
 | `train.seed` | `0` | RNG seed; fixed seeds give reproducible runs. |
 | `train.total_steps` | `100000` | Total environment steps the algorithm trains for. |
 
-### `configs/agent/*.yaml` — the robot
+### `agent/*.yaml` — the robot
 
 | Key | Example | Meaning |
 |---|---|---|
 | `name` | `berkeley_humanoid` | Label recorded in run manifests and logs. |
 | `model` | `weir/models/menagerie/...xml` | Path to the MuJoCo XML asset (repo-relative). |
 
-### `configs/task/*.yaml` — the objective
+### `task/*.yaml` — the objective
 
 Each task file's `params` are constructor kwargs of the task class
 (`weir/core/tasks/`). Reward semantics and source citations live in the task
@@ -109,7 +108,7 @@ docstrings.
 **survive**: no params. A constant reward gives PPO no gradient — nothing can be
 learned from this task; it exists for demo renders, not training.
 
-### `configs/sim/mujoco.yaml` — the simulator
+### `sim/mujoco.yaml` — the simulator
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -127,7 +126,7 @@ learned from this task; it exists for demo renders, not training.
 
 The `randomization` block only takes effect when `robust: true`.
 
-### `configs/algo/ppo.yaml` — the algorithm (PPO via stable-baselines3)
+### `algo/ppo.yaml` — the algorithm (PPO via stable-baselines3)
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -148,7 +147,7 @@ The `randomization` block only takes effect when `robust: true`.
 
 ## Example runs
 
-Commands pick a torch build via the `cpu` or `gpu` extra (see the README's GPU
+Commands pick a torch build via the `cpu` or `gpu` extra (see the root README's GPU
 section); use the extra you synced with:
 
 ```bash

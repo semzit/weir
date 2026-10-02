@@ -11,7 +11,7 @@ import torch
 from torch import nn
 
 from weir.cli.export import export_policy_to_onnx, main, verify_export
-from weir.core.contracts import Shape
+from weir.core.interfaces import Shape
 
 OBS_DIM = 4
 ACTION_DIM = 2
