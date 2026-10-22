@@ -68,25 +68,25 @@ def test_export_end_to_end(tmp_path: Path) -> None:
     algorithm.save(checkpoint)
     onnx_path = tmp_path / "policy.onnx"
 
-    export_policy_to_onnx(algorithm.policy, onnx_path)
+    export_policy_to_onnx(algorithm.policy, onnx_path, obs_dim=OBS_DIM)
 
     assert onnx_path.exists()
     assert onnx_path.stat().st_size > 100
     for batch in (1, 5):
-        assert verify_export(algorithm.policy, onnx_path, batch=batch)
+        assert verify_export(algorithm.policy, onnx_path, obs_dim=OBS_DIM, batch=batch)
 
 
 def test_verification_fails_against_different_policy(tmp_path: Path) -> None:
     algorithm = FakeAlgorithm()
     onnx_path = tmp_path / "policy.onnx"
-    export_policy_to_onnx(algorithm.policy, onnx_path)
-    assert verify_export(algorithm.policy, onnx_path)
+    export_policy_to_onnx(algorithm.policy, onnx_path, obs_dim=OBS_DIM)
+    assert verify_export(algorithm.policy, onnx_path, obs_dim=OBS_DIM)
 
     with torch.no_grad():
         for param in algorithm.policy.parameters():
             param.add_(0.5)
 
-    assert not verify_export(algorithm.policy, onnx_path)
+    assert not verify_export(algorithm.policy, onnx_path, obs_dim=OBS_DIM)
 
 
 def _write_manifest(directory: Path, *, plugin: str = "ppo", obs_dim: int = OBS_DIM) -> None:
@@ -126,7 +126,7 @@ def test_cli_exports_and_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     assert main() == 0
     assert output.exists()
-    assert verify_export(algorithm.policy, output)
+    assert verify_export(algorithm.policy, output, obs_dim=OBS_DIM)
 
 
 def test_cli_returns_nonzero_on_verification_failure(
