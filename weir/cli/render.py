@@ -8,10 +8,8 @@ from typing import Any
 import imageio.v2 as imageio
 import numpy as np
 
-from weir.cli.utils import load_config_section
 from weir.core.interfaces import AlgorithmPlugin, DomainRandomizable
 from weir.core.run import MANIFEST_NAME, Run
-from weir.core.utils import create_algorithm, resolve_model_path
 from weir.envs.backends.mujoco import MuJoCoSim
 
 
@@ -99,24 +97,7 @@ def _add_video_args(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="weir-render",
-        description="Render a MuJoCo rollout to an mp4 video.",
-    )
-    parser.add_argument(
-        "--model",
-        default=None,
-        help="Model XML path for demo renders (no --checkpoint).",
-    )
-    parser.add_argument(
-        "--task",
-        default=None,
-        help="Task name for demo renders (no --checkpoint).",
-    )
-    parser.add_argument(
-        "--task-param",
-        action="append",
-        default=[],
-        metavar="KEY=VALUE",
-        help="Task parameter for demo renders, repeatable (no --checkpoint).",
+        description="Render a trained checkpoint's MuJoCo rollout to an mp4 video.",
     )
     parser.add_argument("--output", default="video.mp4", help="Output file path.")
     _add_video_args(parser)
@@ -141,52 +122,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=None,
+        required=True,
         help="Trained checkpoint to play back; renders the run's own environment.",
     )
     parser.add_argument("--seed", type=int, default=0, help="Seed for the run.")
     return parser
 
 
-def _parse_task_params(entries: list[str]) -> dict[str, object]:
-    params: dict[str, object] = {}
-    for entry in entries:
-        key, sep, value = entry.partition("=")
-        if not key or not sep:
-            raise ValueError(f"Invalid task param (expected KEY=VALUE): {entry!r}")
-        try:
-            params[key] = float(value) if "." in value else int(value)
-        except ValueError:
-            params[key] = value
-    return params
-
-
-_DEMO_FLAGS = (
-    ("--model", "model"),
-    ("--task", "task"),
-    ("--task-param", "task_param"),
-)
-
-
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if not args.checkpoint:
-        return _render_demo(args)
 
     run = Run.open(args.checkpoint)
     if run.config is None:
         print(
             f"weir-render: no manifest ({MANIFEST_NAME}) next to {args.checkpoint}: "
             "this checkpoint predates run manifests; re-train to create one",
-            file=sys.stderr,
-        )
-        return 1
-
-    given = [flag for flag, attr in _DEMO_FLAGS if getattr(args, attr)]
-    if given:
-        print(
-            f"weir-render: {' and '.join(given)} cannot be combined with --checkpoint: "
-            "rendering plays back the checkpoint's own environment",
             file=sys.stderr,
         )
         return 1
@@ -203,40 +153,6 @@ def main(argv: list[str] | None = None) -> int:
     except (RuntimeError, TypeError, ValueError) as error:
         if sim is not None:
             sim.close()
-        print(f"weir-render: {error}", file=sys.stderr)
-        return 1
-    return _play(sim, algo, args)
-
-
-def _render_demo(args: argparse.Namespace) -> int:
-    sim = MuJoCoSim()
-    try:
-        if not args.model:
-            raise ValueError("--model is required when rendering without a checkpoint")
-        if not args.task:
-            raise ValueError("--task is required when rendering without a checkpoint")
-        sim.load(
-            {"name": "render", "model": resolve_model_path(args.model)},
-            {
-                "task": {
-                    "name": args.task,
-                    "params": _parse_task_params(args.task_param),
-                },
-                "time_limit": 5.0,
-                "initial_noise": 0.0,
-            },
-        )
-        algo = create_algorithm("ppo")
-        if args.checkpoint:
-            algo.load(args.checkpoint)
-        else:
-            algo.configure(
-                sim.observation_shape(),
-                sim.action_shape(),
-                load_config_section("algo/ppo", "checkpoint"),
-            )
-    except (RuntimeError, TypeError, ValueError) as error:
-        sim.close()
         print(f"weir-render: {error}", file=sys.stderr)
         return 1
     return _play(sim, algo, args)
