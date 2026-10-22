@@ -26,3 +26,6 @@ class SurviveTask:
 
     def terminated(self, observation: Observation) -> bool:
         return False
+
+    def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
+        return 0.0

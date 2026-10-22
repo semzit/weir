@@ -48,3 +48,6 @@ class BalanceTask:
     def terminated(self, observation: Observation) -> bool:
         x, theta = float(observation[0]), float(observation[1])
         return bool(abs(x) > self.x_threshold or abs(theta) > self.theta_threshold)
+
+    def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
+        return 0.0

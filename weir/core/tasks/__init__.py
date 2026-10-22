@@ -38,6 +38,9 @@ class Task(Protocol):
         prev_observation: Observation | None = None,
     ) -> float: ...
     def terminated(self, observation: Observation) -> bool: ...
+    def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
+        """Task-defined progress between two observations (0 when not applicable)."""
+        ...
 
 
 TaskFactory = Callable[..., Task]

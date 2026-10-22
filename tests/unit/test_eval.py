@@ -42,6 +42,11 @@ class FakeSim:
     def observation_shape(self) -> Shape:
         return Shape(dims=(2,), dtype="float32")
 
+    def progress(self, prev_observation: Any | None, observation: Any) -> float:
+        if prev_observation is None:
+            return 0.0
+        return float(np.asarray(observation)[0]) - float(np.asarray(prev_observation)[0])
+
     def action_shape(self) -> Shape:
         return Shape(dims=(1,), dtype="float32")
 
@@ -99,8 +104,7 @@ def test_rollout_metrics_matches_hand_computed_values() -> None:
     assert metrics == {
         "mean_reward": 3.0,
         "mean_episode_length": 3.0,
-        "total_forward_distance": 6.0,
-        "mean_forward_distance_per_episode": 3.0,
+        "mean_progress": 3.0,
         "episodes_completed": 2.0,
     }
 
@@ -121,7 +125,7 @@ def test_rollout_metrics_caps_episodes_at_max_steps() -> None:
     )
     assert metrics["mean_reward"] == 2.0
     assert metrics["mean_episode_length"] == 2.0
-    assert metrics["total_forward_distance"] == 4.0
+    assert metrics["mean_progress"] == 2.0
     assert metrics["episodes_completed"] == 0.0
 
 

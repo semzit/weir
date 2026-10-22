@@ -75,11 +75,11 @@ def test_run_manifest_drives_eval(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert set(metrics) == {
         "mean_reward",
         "mean_episode_length",
-        "total_forward_distance",
-        "mean_forward_distance_per_episode",
+        "mean_progress",
         "episodes_completed",
     }
     assert metrics["mean_episode_length"] == 20.0
+    assert metrics["mean_progress"] == 0.0
 
 
 def test_run_eval_override_layers_on_manifest_agent(

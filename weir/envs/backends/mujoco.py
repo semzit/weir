@@ -82,6 +82,10 @@ class MuJoCoSim(SimBackend):
         self._last_observation = observation.copy()
         return step
 
+    def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
+        """Delegate to the task's progress definition (0 for tasks without one)."""
+        return self._require_task().progress(prev_observation, observation)
+
     def observation_shape(self) -> Shape:
         model = self._require_model()
         return Shape(dims=(model.nq + model.nv,), dtype="float32")
