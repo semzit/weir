@@ -65,6 +65,9 @@ class RandomizedSim(SimBackend):
     def action_shape(self) -> Shape:
         return self._inner.action_shape()
 
+    def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
+        return self._inner.progress(prev_observation, observation)
+
     def close(self) -> None:
         self._inner.close()
 

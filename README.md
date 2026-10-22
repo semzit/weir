@@ -47,7 +47,7 @@ Train, evaluate, record, and export:
 # 1. Train the humanoid to walk
 uv run --extra cpu weir-train agent=humanoid task=walk_forward
 
-# 2. Evaluate (mean reward, episode length, forward distance)
+# 2. Evaluate (mean reward, episode length, task progress)
 uv run --extra cpu weir-eval --checkpoint outputs/2026-08-15/<run>/checkpoint.zip
 
 # 3. Record a video

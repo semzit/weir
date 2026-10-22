@@ -4,8 +4,6 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 from weir.cli.utils import compose_config, guarded_main
 from weir.core.interfaces import AlgorithmPlugin, SimBackend
 from weir.core.run import MANIFEST_NAME, Run
@@ -22,25 +20,27 @@ def rollout_metrics(
     seed: int,
     max_steps: int,
 ) -> dict[str, float]:
-    """Roll out deterministic episodes, summarizing reward, length, and forward progress.
+    """Roll out deterministic episodes, summarizing reward, length, and task progress.
 
-    Forward displacement is the change in observation[0] (root x position). An
-    episode counts as completed when it ends on a sim signalled termination or
-    truncation rather than exhausting the per-episode step budget.
+    Progress is whatever the run's task defines via ``SimBackend.progress`` (for
+    ``walk_forward`` it is forward displacement; tasks without a progress notion
+    report ``0.0``). An episode counts as completed when it ends on a sim
+    signalled termination or truncation rather than exhausting the per-episode
+    step budget.
     """
     total_reward = 0.0
     total_length = 0
-    total_forward = 0.0
+    total_progress = 0.0
     completed = 0
     for episode in range(episodes):
         observation = sim.reset(seed=seed + episode)
-        initial_x = float(np.asarray(observation)[0])
         episode_reward = 0.0
         episode_length = 0
         finished = False
         for _ in range(max_steps):
             action = algorithm.act(observation, deterministic=True)
             step = sim.step(action)
+            total_progress += sim.progress(observation, step.observation)
             observation = step.observation
             episode_reward += float(step.reward)
             episode_length += 1
@@ -49,14 +49,12 @@ def rollout_metrics(
                 break
         total_reward += episode_reward
         total_length += episode_length
-        total_forward += float(np.asarray(observation)[0]) - initial_x
         if finished:
             completed += 1
     return {
         "mean_reward": total_reward / episodes,
         "mean_episode_length": total_length / episodes,
-        "total_forward_distance": total_forward,
-        "mean_forward_distance_per_episode": total_forward / episodes,
+        "mean_progress": total_progress / episodes,
         "episodes_completed": float(completed),
     }
 

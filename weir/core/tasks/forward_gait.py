@@ -83,3 +83,8 @@ class WalkForwardTask:
 
     def terminated(self, observation: Observation) -> bool:
         return float(observation[2]) < self.min_height
+
+    def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
+        if prev_observation is None:
+            return 0.0
+        return float(observation[0]) - float(prev_observation[0])
