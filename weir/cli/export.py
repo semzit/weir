@@ -20,7 +20,7 @@ def export_policy_to_onnx(
     policy: nn.Module,
     output_path: Path,
     *,
-    obs_dim: int = 4,
+    obs_dim: int,
     batch: int = 1,
 ) -> Path:
     """Export an inference policy to a standalone ONNX file with a dynamic batch axis."""
@@ -46,7 +46,7 @@ def verify_export(
     policy: nn.Module,
     onnx_path: Path,
     *,
-    obs_dim: int = 4,
+    obs_dim: int,
     batch: int = 1,
     samples: int = 5,
     seed: int = 0,
