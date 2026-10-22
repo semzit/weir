@@ -18,6 +18,7 @@ dependencies = [
     "onnx>=1.22.0",
     "onnxruntime>=1.28.0",
     "pydantic>=2.0",
+    "scipy>=1.17.1",
     "stable-baselines3>=2.9.0",
 ]
 
