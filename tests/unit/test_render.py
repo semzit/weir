@@ -10,6 +10,7 @@ from conftest import PPO_CONFIG
 
 from weir.cli.render import main as render_main
 from weir.cli.render import render_episode
+from weir.core.interfaces import SimStep
 from weir.core.utils import create_algorithm
 from weir.envs.backends.mujoco import MuJoCoSim
 from weir.envs.utils import MODELS_DIR
@@ -207,20 +208,61 @@ def test_render_episode_feeds_updated_observations(tmp_path: Path) -> None:
 
 
 def test_cli_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeSim(MuJoCoSim):
+        def reset(self, seed: int | None = None) -> np.ndarray:
+            return np.zeros(4, dtype=np.float32)
+
+        @property
+        def dt(self) -> float:
+            return 0.02
+
+        def step(self, action: object) -> SimStep:
+            return SimStep(
+                observation=np.zeros(4, dtype=np.float32),
+                reward=0.0,
+                terminated=False,
+                truncated=False,
+            )
+
+        def render_frame(self, width: int = 0, height: int = 0) -> np.ndarray:
+            return np.zeros((height, width, 3), dtype=np.uint8)
+
+        def close(self) -> None: ...
+
+    class FakeAlgorithm:
+        def act(self, observation: object, deterministic: bool = False) -> np.ndarray:
+            return np.zeros(1, dtype=np.float32)
+
+    class FakeRun:
+        config = {"agent": {"name": "x"}}
+
+        def sim(self) -> FakeSim:
+            return FakeSim()
+
+        def validate(self, sim: object) -> None: ...
+
+        def algorithm(self) -> FakeAlgorithm:
+            return FakeAlgorithm()
+
+        @classmethod
+        def open(cls, _checkpoint: object) -> FakeRun:
+            return cls()
+
+    monkeypatch.setattr("weir.cli.render.Run", FakeRun)
     output = tmp_path / "cli.mp4"
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "weir-render",
-            "--model",
-            str(CART_POLE),
-            "--task",
-            "survive",
+            "--checkpoint",
+            str(tmp_path / "checkpoint.zip"),
             "--output",
             str(output),
             "--frames",
             "10",
+            "--frame-interval",
+            "1",
             "--width",
             "160",
             "--height",
@@ -232,6 +274,12 @@ def test_cli_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert render_main() == 0
     assert output.exists()
     assert output.stat().st_size > 0
+
+
+def test_cli_requires_checkpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["weir-render"])
+    with pytest.raises(SystemExit):
+        render_main()
 
 
 def test_cli_rejects_legacy_checkpoint_without_manifest(
@@ -316,50 +364,3 @@ def test_cli_plays_back_manifest_env(tmp_path: Path, monkeypatch: pytest.MonkeyP
     )
     assert render_main() == 0
     assert output.exists()
-
-
-def test_cli_rejects_env_flags_with_manifest_checkpoint(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    manifest = tmp_path / "checkpoint.meta.json"
-    manifest.write_text('{"agent": {"name": "x"}}', encoding="utf-8")
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "weir-render",
-            "--checkpoint",
-            str(tmp_path / "checkpoint.zip"),
-            "--task-param",
-            "x=1",
-        ],
-    )
-    assert render_main() == 1
-
-
-def test_cli_rejects_malformed_task_param(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["weir-render", "--model", str(CART_POLE), "--task", "survive", "--task-param", "nq"],
-    )
-    assert render_main() == 1
-
-
-def test_cli_rejects_unknown_task_param(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["weir-render", "--model", str(CART_POLE), "--task", "survive", "--task-param", "x=1"],
-    )
-    assert render_main() == 1
-
-
-def test_cli_requires_model_and_task_for_demo(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(sys, "argv", ["weir-render", "--model", str(CART_POLE)])
-    assert render_main() == 1
-
-    monkeypatch.setattr(sys, "argv", ["weir-render", "--task", "survive"])
-    assert render_main() == 1
