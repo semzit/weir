@@ -11,6 +11,25 @@ from weir.core.interfaces import Action, Observation, Shape, SimBackend, SimStep
 from weir.core.tasks import TASKS, Task
 
 
+def _perturb_joint_qpos(
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    noise: float,
+    rng: np.random.Generator,
+) -> None:
+    """Add noise to non-root joint coordinates; normalize perturbed ball quaternions."""
+    for joint in range(model.njnt):
+        kind = model.jnt_type[joint]
+        if kind == mujoco.mjtJoint.mjJNT_FREE:
+            continue
+        address = int(model.jnt_qposadr[joint])
+        if kind == mujoco.mjtJoint.mjJNT_BALL:
+            quat = data.qpos[address : address + 4] + rng.normal(0.0, noise, 4)
+            data.qpos[address : address + 4] = quat / np.linalg.norm(quat)
+        else:
+            data.qpos[address] += rng.normal(0.0, noise)
+
+
 class MuJoCoSim(SimBackend):
     """MuJoCo-backed SimBackend for single-environment rollouts."""
 
@@ -51,13 +70,7 @@ class MuJoCoSim(SimBackend):
         self._last_observation = None
         mujoco.mj_resetData(model, data)
         if self._initial_noise > 0:
-            if model.nq <= 7:
-                raise ValueError(
-                    "initial_noise requires a freejoint (model.nq > 7); "
-                    f"this model has nq={model.nq}"
-                )
-            rng = np.random.default_rng(seed)
-            data.qpos[7:] += rng.normal(0.0, self._initial_noise, size=model.nq - 7)
+            _perturb_joint_qpos(model, data, self._initial_noise, np.random.default_rng(seed))
             mujoco.mj_forward(model, data)
         return self._observe(data)
 
