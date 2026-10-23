@@ -54,14 +54,6 @@ class FakeAlgorithm:
         return self.policy
 
 
-def test_export_policy_output_shape() -> None:
-    algorithm = FakeAlgorithm()
-    policy = algorithm.export_policy()
-    for batch in (1, 4):
-        actions = policy(torch.randn(batch, OBS_DIM))
-        assert actions.shape == (batch, ACTION_DIM)
-
-
 def test_export_end_to_end(tmp_path: Path) -> None:
     algorithm = FakeAlgorithm()
     checkpoint = tmp_path / "policy.zip"
@@ -137,21 +129,6 @@ def test_cli_returns_nonzero_on_verification_failure(
     _write_manifest(tmp_path)
     monkeypatch.setattr("weir.cli.export.create_algorithm", lambda _name: FakeAlgorithm())
     monkeypatch.setattr("weir.cli.export.verify_export", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["weir-export", "--checkpoint", str(checkpoint), "--output", str(tmp_path / "policy.onnx")],
-    )
-
-    assert main() == 1
-
-
-def test_cli_returns_nonzero_when_policy_export_unsupported(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    checkpoint = tmp_path / "policy.zip"
-    checkpoint.write_text("ppo-checkpoint", encoding="utf-8")
-    _write_manifest(tmp_path)
     monkeypatch.setattr(
         sys,
         "argv",

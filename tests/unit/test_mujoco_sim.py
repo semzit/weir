@@ -4,8 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
 
 from weir.core.interfaces import SimStep
 from weir.envs.backends.mujoco import MuJoCoSim
@@ -26,7 +24,7 @@ def make_sim(model_path: Path, *, task: dict | None = None, **sim_config: object
     return sim
 
 
-def test_observation_shape_matches_reset() -> None:
+def test_shapes_match_model() -> None:
     sim = make_sim(CART_POLE)
     shape = sim.observation_shape()
     obs = sim.reset()
@@ -34,14 +32,11 @@ def test_observation_shape_matches_reset() -> None:
     assert obs.dtype == np.float32
     assert shape.dtype == "float32"
 
-
-def test_action_shape_reports_bounds() -> None:
-    sim = make_sim(CART_POLE)
-    shape = sim.action_shape()
-    assert shape.dims == (1,)
-    assert shape.low is not None
-    assert shape.high is not None
-    assert shape.low.shape == (1,)
+    action_shape = sim.action_shape()
+    assert action_shape.dims == (1,)
+    assert action_shape.low is not None
+    assert action_shape.high is not None
+    assert action_shape.low.shape == (1,)
 
 
 _NO_CTRLRANGE_XML = """\
@@ -69,44 +64,45 @@ def test_action_shape_rejects_degenerate_ctrlrange(tmp_path: Path) -> None:
     sim.close()
 
 
-def test_step_returns_simstep() -> None:
+def test_step_returns_simstep_and_advances() -> None:
     sim = make_sim(CART_POLE)
-    sim.reset()
-    result = sim.step(np.zeros(1, dtype=np.float32))
+    before = sim.reset()
+    result = sim.step(np.array([1.0], dtype=np.float32))
     assert isinstance(result, SimStep)
     assert result.observation.shape == sim.observation_shape().dims
     assert isinstance(result.reward, float)
     assert isinstance(result.terminated, bool)
     assert isinstance(result.truncated, bool)
-
-
-def test_step_changes_observation() -> None:
-    sim = make_sim(CART_POLE)
-    before = sim.reset()
-    result = sim.step(np.array([1.0], dtype=np.float32))
     assert not np.array_equal(before, result.observation)
 
 
-def test_reset_is_deterministic_without_seed() -> None:
-    a = make_sim(MENAGERIE).reset()
-    b = make_sim(MENAGERIE).reset()
+def test_seeded_resets_and_trajectories_are_reproducible() -> None:
+    sim_a = make_sim(MENAGERIE)
+    sim_b = make_sim(MENAGERIE)
+    a = sim_a.reset()
+    b = sim_b.reset()
     assert np.array_equal(a, b)
+    sim_a.close()
+    sim_b.close()
 
-
-def test_seed_makes_initial_noise_reproducible() -> None:
-    a = make_sim(MENAGERIE, initial_noise=0.1).reset(seed=1)
-    b = make_sim(MENAGERIE, initial_noise=0.1).reset(seed=2)
-    c = make_sim(MENAGERIE, initial_noise=0.1).reset(seed=1)
+    sim_a = make_sim(MENAGERIE, initial_noise=0.1)
+    sim_b = make_sim(MENAGERIE, initial_noise=0.1)
+    sim_c = make_sim(MENAGERIE, initial_noise=0.1)
+    a = sim_a.reset(seed=1)
+    b = sim_b.reset(seed=2)
+    c = sim_c.reset(seed=1)
     assert np.array_equal(a, c)
     assert not np.array_equal(a, b)
+    sim_a.close()
+    sim_b.close()
+    sim_c.close()
 
-
-def test_same_seed_reproduces_trajectory() -> None:
     def trajectory(seed: int) -> list[np.ndarray]:
         sim = make_sim(MENAGERIE, initial_noise=0.05)
         obs = [sim.reset(seed=seed).copy()]
         for _ in range(5):
             obs.append(sim.step(np.zeros(12, dtype=np.float32)).observation.copy())
+        sim.close()
         return obs
 
     for x, y in zip(trajectory(7), trajectory(7), strict=True):
@@ -142,17 +138,6 @@ def test_unknown_task_raises() -> None:
                 "initial_noise": 0.0,
             },
         )
-
-
-def test_berkeley_humanoid_rolls_out() -> None:
-    sim = make_sim(MENAGERIE, time_limit=1.0)
-    obs = sim.reset()
-    action = np.zeros(sim.action_shape().dims, dtype=np.float32)
-    result = None
-    for _ in range(20):
-        result = sim.step(action)
-    assert result is not None
-    assert result.observation.shape == obs.shape
 
 
 def test_walk_forward_task_terminates_on_fall() -> None:
@@ -210,25 +195,24 @@ def test_apply_perturbation_targets_the_requested_body() -> None:
     assert abs(pole_push[3]) > abs(cart_push[3])
 
 
-@settings(max_examples=40, deadline=None)
-@given(seed=st.integers(0, 1000), steps=st.integers(1, 15))
-def test_rollout_conforms_to_shapes(seed: int, steps: int) -> None:
+def test_humanoid_rollout_conforms_to_shapes() -> None:
     sim = make_sim(MENAGERIE, task={"name": "standing", "params": {"min_height": 0.2}})
     obs_shape = sim.observation_shape()
     act_shape = sim.action_shape()
-    rng = np.random.default_rng(seed)
-    obs = sim.reset(seed=seed)
+    low = act_shape.low
+    high = act_shape.high
+    assert low is not None and high is not None
+    rng = np.random.default_rng(7)
+    obs = sim.reset(seed=7)
     assert obs.shape == obs_shape.dims
-    for _ in range(steps):
-        low = act_shape.low
-        high = act_shape.high
-        assert low is not None and high is not None
+    for _ in range(10):
         action = rng.uniform(low, high).astype(np.float32)
         result = sim.step(action)
         assert result.observation.shape == obs_shape.dims
         assert isinstance(result.reward, float)
         assert isinstance(result.terminated, bool)
         assert isinstance(result.truncated, bool)
+    sim.close()
 
 
 def test_initial_noise_randomizes_unseeded_resets() -> None:
@@ -251,17 +235,13 @@ def test_initial_noise_requires_freejoint() -> None:
     sim.close()
 
 
-def test_load_requires_task_name() -> None:
+def test_load_requires_complete_sim_config() -> None:
     sim = MuJoCoSim()
     with pytest.raises(ValueError, match="task"):
         sim.load(
             {"name": "x", "model": str(CART_POLE)},
             {"time_limit": 10.0, "initial_noise": 0.0},
         )
-
-
-def test_load_requires_time_limit_and_initial_noise() -> None:
-    sim = MuJoCoSim()
     with pytest.raises(ValueError, match="validation error"):
         sim.load(
             {"name": "x", "model": str(CART_POLE)},

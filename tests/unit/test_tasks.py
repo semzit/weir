@@ -31,11 +31,17 @@ def test_standing_terminates_below_min_height() -> None:
     assert task.reward(short, np.zeros(1, dtype=np.float32)) == 0.0
 
 
-def test_tasks_registry_builds_with_params() -> None:
-    assert TASKS["survive"] is SurviveTask
-    assert TASKS["standing"] is StandingTask
-    task = TASKS["standing"](min_height=0.5)
-    assert task.min_height == 0.5
+def test_task_registry() -> None:
+    assert {
+        "survive": SurviveTask,
+        "standing": StandingTask,
+        "balance": BalanceTask,
+        "walk_forward": WalkForwardTask,
+    } == TASKS
+    assert TASKS["standing"](min_height=0.5).min_height == 0.5
+    walk = TASKS["walk_forward"](nq=13, min_height=0.7)
+    assert walk.nq == 13
+    assert walk.min_height == 0.7
 
 
 def test_balance_rewards_every_step_and_terminates_outside_bounds() -> None:
@@ -56,10 +62,6 @@ def test_balance_rewards_every_step_and_terminates_outside_bounds() -> None:
     cart_over = np.zeros(4, dtype=np.float32)
     cart_over[0] = task.x_threshold + 0.1
     assert task.terminated(cart_over) is True
-
-
-def test_balance_registry_entry() -> None:
-    assert TASKS["balance"] is BalanceTask
 
 
 def _make_obs(
@@ -89,34 +91,23 @@ def test_walk_forward_terminates_below_min_height() -> None:
     assert task.reward(short, np.zeros(1, dtype=np.float32)) == 0.0
 
 
-def test_walk_forward_reward_scales_with_forward_velocity() -> None:
+def test_walk_forward_reward_terms() -> None:
     task = WalkForwardTask(nq=19)
     action = np.zeros(1, dtype=np.float32)
+
     slow = _make_obs(height=1.2, yaw=0.0, forward_vel=1.0)
     fast = _make_obs(height=1.2, yaw=0.0, forward_vel=2.0)
-
     assert task.reward(fast, action) > task.reward(slow, action)
     # alive 1.0 + forward 2.0*1*1 + heading 1.0*1 + upright 0.5*1
     assert pytest.approx(task.reward(slow, action)) == 4.5
 
-
-def test_walk_forward_sideways_motion_reduces_reward() -> None:
-    task = WalkForwardTask(nq=19)
-    action = np.zeros(1, dtype=np.float32)
     aligned = _make_obs(height=1.2, yaw=0.0, forward_vel=1.0)
     sideways = _make_obs(height=1.2, yaw=np.pi / 2.0, forward_vel=1.0)
-
     assert task.reward(sideways, action) < task.reward(aligned, action)
     # sideways: heading ~0, still upright -> alive 1.0 + upright 0.5
     assert pytest.approx(task.reward(sideways, action)) == 1.5
 
-
-def test_walk_forward_backwards_motion_reduces_reward() -> None:
-    task = WalkForwardTask(nq=19)
-    action = np.zeros(1, dtype=np.float32)
-    aligned = _make_obs(height=1.2, yaw=0.0, forward_vel=1.0)
     backwards = _make_obs(height=1.2, yaw=np.pi, forward_vel=1.0)
-
     assert task.reward(backwards, action) < task.reward(aligned, action)
     assert task.reward(backwards, action) < 0.0
 
@@ -155,13 +146,6 @@ def test_walk_forward_respects_config_params() -> None:
     assert task.reward(low, np.asarray([2.0], dtype=np.float32)) == 0.0
 
 
-def test_walk_forward_registry_builds_with_params() -> None:
-    assert TASKS["walk_forward"] is WalkForwardTask
-    task = TASKS["walk_forward"](nq=13, min_height=0.7)
-    assert task.nq == 13
-    assert task.min_height == 0.7
-
-
 def test_rotate_vector_rotates_wxyz_quaternion() -> None:
     quarter_turn = np.asarray([np.cos(np.pi / 4), 0.0, 0.0, np.sin(np.pi / 4)])
     forward = rotate_vector(quarter_turn, (1.0, 0.0, 0.0))
@@ -170,7 +154,7 @@ def test_rotate_vector_rotates_wxyz_quaternion() -> None:
     assert np.allclose(up, [0.0, 0.0, 1.0])
 
 
-def test_walk_forward_progress_rewards_forward_motion() -> None:
+def test_walk_forward_extra_rewards() -> None:
     task = WalkForwardTask(nq=19, min_height=0.3, progress_coef=2.0)
     obs = _make_obs(height=0.6, yaw=0.0, forward_vel=0.5)
     prev = _make_obs(height=0.6, yaw=0.0, forward_vel=0.5)
@@ -180,10 +164,7 @@ def test_walk_forward_progress_rewards_forward_motion() -> None:
     assert with_progress > task.reward(obs, action)
     assert pytest.approx(with_progress - task.reward(obs, action)) == 0.2
 
-
-def test_walk_forward_height_rewards_keeping_torso_up() -> None:
     task = WalkForwardTask(nq=19, min_height=0.3, height_coef=2.0)
-    action = np.zeros(1, dtype=np.float32)
     high = _make_obs(height=0.6, yaw=0.0, forward_vel=0.0)
     low = _make_obs(height=0.45, yaw=0.0, forward_vel=0.0)
     assert task.reward(high, action) > task.reward(low, action)

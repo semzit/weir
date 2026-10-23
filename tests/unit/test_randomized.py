@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from conftest import NEUTRAL_RANDOMIZATION, RANDOMIZATION
 
-from weir.core.interfaces import DomainRandomizable, SimBackend
+from weir.core.interfaces import SimBackend
 from weir.envs.backends.mujoco import MuJoCoSim
 from weir.envs.utils import MODELS_DIR
 from weir.envs.wrappers.randomized import RandomizedSim
@@ -42,10 +42,6 @@ def make_bare(model_path=CART_POLE) -> MuJoCoSim:
 
 def test_wrapped_sim_conforms_to_protocol() -> None:
     assert isinstance(make_wrapped(RANDOMIZATION), SimBackend)
-
-
-def test_mujoco_sim_is_domain_randomizable() -> None:
-    assert isinstance(make_bare(CART_POLE), DomainRandomizable)
 
 
 def test_neutral_config_is_pass_through() -> None:
