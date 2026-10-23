@@ -1,6 +1,23 @@
 # Weir
 
 <p align="center">
+  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/uv-managed-DE5FE1?logo=uv&logoColor=white" alt="uv managed" />
+  <img src="https://img.shields.io/badge/MuJoCo-3.11%2B-1B1B1B" alt="MuJoCo 3.11+" />
+  <img src="https://img.shields.io/badge/PyTorch-2.13%2B-EE4C2C?logo=pytorch&logoColor=white" alt="PyTorch 2.13+" />
+  <img src="https://img.shields.io/badge/stable--baselines3-2.9%2B-2C3E50" alt="Stable-Baselines3 2.9+" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff" />
+  <img src="https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white" alt="pytest" />
+  <img src="https://img.shields.io/github/last-commit/semzit/weir" alt="Last commit" />
+  <img src="https://img.shields.io/github/issues/semzit/weir" alt="Issues" />
+  <img src="https://img.shields.io/github/stars/semzit/weir?style=social" alt="Stars" />
+  <img src="https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black" alt="Platform Linux" />
+</p>
+
+<p align="center">
   <img src="assets/weir-hero.jpg" alt="Weir" width="520" />
 </p>
 
