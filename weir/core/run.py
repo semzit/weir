@@ -10,14 +10,57 @@ flags, so a checkpoint can no longer be paired with the wrong model.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from weir.core.interfaces import AlgorithmPlugin, SimBackend
+from weir.core.configs import RandomizationConfig
+from weir.core.interfaces import AlgorithmPlugin, FrameSource, SimBackend
 from weir.core.utils import create_algorithm, create_sim
 from weir.envs.wrappers.randomized import RandomizedSim
 
 MANIFEST_NAME = "checkpoint.meta.json"
+
+
+@dataclass(frozen=True, slots=True)
+class TestEnv:
+    """A loaded simulator for evaluation/rendering plus its optional frame source."""
+
+    sim: SimBackend
+    frames: FrameSource | None
+
+
+def build_test_env(
+    agent_config: dict[str, Any],
+    sim_config: dict[str, Any],
+    task_config: dict[str, Any],
+    *,
+    perturbation: RandomizationConfig | None = None,
+) -> TestEnv:
+    """Build and load a test environment, optionally with perturbation enabled."""
+    if "robust" not in sim_config:
+        raise ValueError("sim config is missing the 'robust' key")
+    robust = bool(sim_config["robust"])
+    raw = sim_config.get("randomization")
+    if raw is not None and not isinstance(raw, dict):
+        raise ValueError("sim config 'randomization' must be a mapping")
+    randomization: dict[str, Any] = dict(raw) if isinstance(raw, dict) else {}
+    if robust and not randomization:
+        raise ValueError("sim config is missing the 'randomization' block (required when robust)")
+    if perturbation is not None:
+        base = randomization if robust else RandomizationConfig.neutral().model_dump()
+        randomization = {
+            **base,
+            "perturbation_force": perturbation.perturbation_force,
+            "perturbation_prob": perturbation.perturbation_prob,
+            "perturbation_body": perturbation.perturbation_body,
+        }
+        robust = True
+    base_sim = create_sim(str(sim_config["plugin"]))
+    base_sim.load(agent_config, {**sim_config, "task": task_config})
+    frames = base_sim if isinstance(base_sim, FrameSource) else None
+    sim = RandomizedSim(base_sim, randomization) if robust else base_sim
+    return TestEnv(sim=sim, frames=frames)
 
 
 class Run:
@@ -68,15 +111,19 @@ class Run:
         algorithm.load(self._checkpoint)
         return algorithm
 
+    def test_env(self, *, perturbation: RandomizationConfig | None = None) -> TestEnv:
+        """Build and load the run's test environment, optionally with perturbation enabled."""
+        config = self._require_config()
+        return build_test_env(
+            dict(config["agent"]),
+            dict(config["sim"]),
+            dict(config["task"]),
+            perturbation=perturbation,
+        )
+
     def sim(self) -> SimBackend:
         """Build the simulator the run was trained with (hardening included)."""
-        config = self._require_config()
-        sim_config = dict(config["sim"])
-        agent_config = dict(config["agent"])
-        task_config = dict(config["task"])
-        sim = self.build_sim(sim_config)
-        sim.load(agent_config, {**sim_config, "task": task_config})
-        return sim
+        return self.test_env().sim
 
     def obs_dim(self) -> int | None:
         """The flat observation dimension the policy was trained with."""

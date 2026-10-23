@@ -6,8 +6,11 @@ from pathlib import Path
 import pytest
 from conftest import RANDOMIZATION
 
+from weir.core.configs import RandomizationConfig
 from weir.core.run import Run
+from weir.envs.backends.mujoco import MuJoCoSim
 from weir.envs.utils import MODELS_DIR
+from weir.envs.wrappers.randomized import RandomizedSim
 
 CART_POLE = MODELS_DIR / "cartpole.xml"
 BERKELEY = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.xml"
@@ -20,6 +23,7 @@ def make_run(
     obs_dims: tuple[int, ...] = (4,),
     act_dims: tuple[int, ...] = (1,),
     agent_name: str = "test_agent",
+    robust: bool = False,
 ) -> Run:
     manifest = tmp_path / "checkpoint.meta.json"
     manifest.write_text(
@@ -32,7 +36,7 @@ def make_run(
                     "plugin": "mujoco",
                     "time_limit": 10.0,
                     "initial_noise": 0.0,
-                    "robust": False,
+                    "robust": robust,
                     "randomization": RANDOMIZATION,
                 },
                 "algo": {"plugin": "ppo"},
@@ -67,6 +71,33 @@ def test_sim_builds_from_manifest(tmp_path: Path) -> None:
     assert sim.observation_shape().dims == (4,)
     assert sim.action_shape().dims == (1,)
     sim.close()
+
+
+def test_test_env_exposes_frames_for_render(tmp_path: Path) -> None:
+    env = make_run(tmp_path).test_env()
+    try:
+        assert env.frames is env.sim
+    finally:
+        env.sim.close()
+
+
+def test_test_env_keeps_camera_when_robust(tmp_path: Path) -> None:
+    env = make_run(tmp_path, robust=True).test_env()
+    try:
+        assert isinstance(env.sim, RandomizedSim)
+        assert isinstance(env.frames, MuJoCoSim)
+    finally:
+        env.sim.close()
+
+
+def test_test_env_applies_perturbation(tmp_path: Path) -> None:
+    perturbation = RandomizationConfig.neutral(force=5.0, prob=1.0, body=2)
+    env = make_run(tmp_path).test_env(perturbation=perturbation)
+    try:
+        assert isinstance(env.sim, RandomizedSim)
+        assert isinstance(env.frames, MuJoCoSim)
+    finally:
+        env.sim.close()
 
 
 def test_validate_passes_on_matching_shapes(tmp_path: Path) -> None:
