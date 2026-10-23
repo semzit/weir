@@ -10,10 +10,13 @@ from conftest import PPO_CONFIG
 
 from weir.cli.render import main as render_main
 from weir.cli.render import render_episode
+from weir.core.configs import RandomizationConfig
 from weir.core.interfaces import SimStep
+from weir.core.run import TestEnv as LoadedTestEnv
 from weir.core.utils import create_algorithm
 from weir.envs.backends.mujoco import MuJoCoSim
 from weir.envs.utils import MODELS_DIR
+from weir.envs.wrappers.randomized import RandomizedSim
 
 CART_POLE = MODELS_DIR / "cartpole.xml"
 
@@ -59,6 +62,7 @@ def test_render_episode_writes_mp4(tmp_path: Path) -> None:
     output = tmp_path / "episode.mp4"
     result = render_episode(
         sim,
+        sim,
         algo,
         output,
         frames_to_capture=10,
@@ -80,6 +84,7 @@ def test_render_episode_stops_at_termination(tmp_path: Path) -> None:
     output = tmp_path / "short.mp4"
     render_episode(
         sim,
+        sim,
         algo,
         output,
         frames_to_capture=1000,
@@ -98,6 +103,7 @@ def test_render_episode_paces_frames_to_realtime(tmp_path: Path) -> None:
     algo.configure(sim.observation_shape(), sim.action_shape(), PPO_CONFIG)
     output = tmp_path / "paced.mp4"
     render_episode(
+        sim,
         sim,
         algo,
         output,
@@ -166,7 +172,12 @@ def test_render_episode_applies_perturbations(tmp_path: Path) -> None:
 
     sim = RecordingSim()
     algo = FakeAlgorithm()
+    env = RandomizedSim(
+        sim,
+        RandomizationConfig.neutral(force=5.0, prob=1.0, body=2).model_dump(),
+    )
     render_episode(
+        env,
         sim,
         algo,  # type: ignore[arg-type]
         tmp_path / "perturbed.mp4",
@@ -176,9 +187,6 @@ def test_render_episode_applies_perturbations(tmp_path: Path) -> None:
         height=120,
         fps=15,
         seed=0,
-        perturb_force=5.0,
-        perturb_prob=1.0,  # push every step
-        perturb_body=2,
     )
     sim.close()
     assert len(sim.pushes) == 3  # initial frame consumes one frame slot
@@ -201,6 +209,7 @@ def test_render_episode_feeds_updated_observations(tmp_path: Path) -> None:
     algo = RecordingAlgorithm()
     output = tmp_path / "recorded.mp4"
     render_episode(
+        sim,
         sim,
         algo,  # type: ignore[arg-type]
         output,
@@ -245,11 +254,15 @@ def test_cli_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         def act(self, observation: object, deterministic: bool = False) -> np.ndarray:
             return np.zeros(1, dtype=np.float32)
 
+    seen: dict[str, object] = {}
+
     class FakeRun:
         config = {"agent": {"name": "x"}}
 
-        def sim(self) -> FakeSim:
-            return FakeSim()
+        def test_env(self, *, perturbation: RandomizationConfig | None = None) -> LoadedTestEnv:
+            seen["perturbation"] = perturbation
+            sim = FakeSim()
+            return LoadedTestEnv(sim=sim, frames=sim)
 
         def validate(self, sim: object) -> None: ...
 
@@ -281,11 +294,21 @@ def test_cli_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             "120",
             "--fps",
             "15",
+            "--perturb-force",
+            "5",
+            "--perturb-prob",
+            "1",
+            "--perturb-body",
+            "2",
         ],
     )
     assert render_main() == 0
     assert output.exists()
     assert output.stat().st_size > 0
+    perturbation = seen["perturbation"]
+    assert isinstance(perturbation, RandomizationConfig)
+    assert perturbation.perturbation_force == 5.0
+    assert perturbation.perturbation_body == 2
 
 
 def test_cli_requires_checkpoint(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -351,8 +374,9 @@ def test_cli_plays_back_manifest_env(tmp_path: Path, monkeypatch: pytest.MonkeyP
     class FakeRun:
         config = {"agent": {"name": "x"}}
 
-        def sim(self) -> FakeSim:
-            return FakeSim()
+        def test_env(self, *, perturbation: RandomizationConfig | None = None) -> LoadedTestEnv:
+            sim = FakeSim()
+            return LoadedTestEnv(sim=sim, frames=sim)
 
         def validate(self, sim: object) -> None: ...
 

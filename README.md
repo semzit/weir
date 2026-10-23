@@ -67,6 +67,10 @@ uv run --extra cpu weir-train agent=humanoid task=walk_forward
 # 2. Evaluate (mean reward, episode length, task progress)
 uv run --extra cpu weir-eval --checkpoint outputs/2026-08-15/<run>/checkpoint.zip
 
+# Evaluate under the same random pushes used for rendering
+uv run --extra cpu weir-eval --checkpoint outputs/2026-08-15/<run>/checkpoint.zip \
+  --perturb-force 8 --perturb-body 2
+
 # 3. Record a video
 uv run --extra cpu weir-render --checkpoint outputs/2026-08-15/<run>/checkpoint.zip --output walk.mp4
 
@@ -76,7 +80,9 @@ uv run --extra cpu weir-export --checkpoint outputs/2026-08-15/<run>/checkpoint.
 
 Every run writes a manifest (`checkpoint.meta.json`) beside the checkpoint with the resolved
 config and shapes; the tools above rebuild the environment from it, so a checkpoint can't be
-paired with the wrong model — no flags needed.
+paired with the wrong model — no flags needed. Runs trained with `sim.robust=true` stay
+hardened when evaluated and rendered. Both commands accept the same `--perturb-force`,
+`--perturb-prob`, and `--perturb-body` flags to add test-time pushes.
 
 ## GPU (optional)
 

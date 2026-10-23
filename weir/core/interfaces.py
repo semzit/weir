@@ -48,6 +48,15 @@ class SimBackend(Protocol):
 
 
 @runtime_checkable
+class FrameSource(Protocol):
+    """Optional simulator capability for capturing rendered frames."""
+
+    @property
+    def dt(self) -> float: ...
+    def render_frame(self, width: int = 640, height: int = 480) -> np.ndarray: ...
+
+
+@runtime_checkable
 class AlgorithmPlugin(Protocol):
     """Learning and policy boundary.
 

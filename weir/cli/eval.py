@@ -4,9 +4,15 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from weir.cli.utils import compose_config, guarded_main
+from weir.cli.utils import (
+    add_perturbation_args,
+    compose_config,
+    guarded_main,
+    perturbation_from_args,
+)
+from weir.core.configs import RandomizationConfig
 from weir.core.rollout import rollout_metrics
-from weir.core.run import MANIFEST_NAME, Run
+from weir.core.run import MANIFEST_NAME, Run, build_test_env
 from weir.core.utils import config_to_dict, create_algorithm
 
 _FIXED_OVERRIDE_KEYS = ("agent", "algo")
@@ -19,12 +25,14 @@ def run_eval(
     seed: int,
     max_steps: int,
     overrides: list[str] | None = None,
+    perturbation: RandomizationConfig | None = None,
 ) -> dict[str, float]:
     """Evaluate a checkpoint, driven by its manifest.
 
     ``--override`` layers on top of the manifest: the run's agent/task are used
     as the base so e.g. ``--override task.params.x=1`` tweaks the run's own
-    task.
+    task. ``perturbation`` enables disturbance pushes on top of the manifest's
+    hardening settings.
     """
     run = Run.open(checkpoint)
     manifest = run.config
@@ -34,8 +42,9 @@ def run_eval(
             "predates run manifests; re-train to create one"
         )
     if not overrides:
-        sim = run.sim()
-        run.validate(sim)
+        agent_config = dict(manifest["agent"])
+        sim_config = dict(manifest["sim"])
+        task_config = dict(manifest["task"])
         algorithm = run.algorithm()
     else:
         _reject_fixed_overrides(overrides)
@@ -46,15 +55,14 @@ def run_eval(
         sim_config = config_to_dict(cfg.sim)
         task_config = config_to_dict(cfg.task)
         algorithm_config = config_to_dict(cfg.algo)
-        sim = Run.build_sim(sim_config)
-        sim.load(agent_config, {**sim_config, "task": task_config})
-        run.validate(sim)
         algorithm = create_algorithm(str(algorithm_config["plugin"]))
         algorithm.load(checkpoint)
+    env = build_test_env(agent_config, sim_config, task_config, perturbation=perturbation)
     try:
-        return rollout_metrics(sim, algorithm, episodes, seed=seed, max_steps=max_steps)
+        run.validate(env.sim)
+        return rollout_metrics(env.sim, algorithm, episodes, seed=seed, max_steps=max_steps)
     finally:
-        sim.close()
+        env.sim.close()
 
 
 def _reject_fixed_overrides(overrides: list[str]) -> None:
@@ -80,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--episodes", type=int, default=5, help="Episodes to roll out.")
     parser.add_argument("--seed", type=int, default=0, help="Seed for the rollouts.")
     parser.add_argument("--max-steps", type=int, default=1000, help="Maximum steps per episode.")
+    add_perturbation_args(parser)
     parser.add_argument(
         "--override",
         action="append",
@@ -97,6 +106,7 @@ def _run_eval_from_args(args: argparse.Namespace) -> dict[str, Any]:
         seed=args.seed,
         max_steps=args.max_steps,
         overrides=args.override,
+        perturbation=perturbation_from_args(args),
     )
     run = Run.open(args.checkpoint)
     config = run.config or {}

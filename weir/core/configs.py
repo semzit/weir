@@ -7,7 +7,7 @@ instead of being silently defaulted.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -46,6 +46,27 @@ class RandomizationConfig(BaseModel):
     perturbation_force: float
     perturbation_prob: float
     perturbation_body: int
+
+    @classmethod
+    def neutral(
+        cls,
+        *,
+        force: float = 0.0,
+        prob: float = 0.0,
+        body: int = 1,
+    ) -> Self:
+        """A no-op hardening config with only the perturbation knobs optionally enabled."""
+        return cls(
+            mass_scale=(1.0, 1.0),
+            friction_scale=(1.0, 1.0),
+            damping_scale=(1.0, 1.0),
+            noise_std=0.0,
+            action_noise_std=0.0,
+            latency_steps=0,
+            perturbation_force=force,
+            perturbation_prob=prob,
+            perturbation_body=body,
+        )
 
 
 class AlgorithmConfig(BaseModel):
