@@ -5,58 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from weir.cli.utils import compose_config, guarded_main
-from weir.core.interfaces import AlgorithmPlugin, SimBackend
+from weir.core.rollout import rollout_metrics
 from weir.core.run import MANIFEST_NAME, Run
 from weir.core.utils import config_to_dict, create_algorithm
 
 _FIXED_OVERRIDE_KEYS = ("agent", "algo")
-
-
-def rollout_metrics(
-    sim: SimBackend,
-    algorithm: AlgorithmPlugin,
-    episodes: int,
-    *,
-    seed: int,
-    max_steps: int,
-) -> dict[str, float]:
-    """Roll out deterministic episodes, summarizing reward, length, and task progress.
-
-    Progress is whatever the run's task defines via ``SimBackend.progress`` (for
-    ``walk_forward`` it is forward displacement; tasks without a progress notion
-    report ``0.0``). An episode counts as completed when it ends on a sim
-    signalled termination or truncation rather than exhausting the per-episode
-    step budget.
-    """
-    total_reward = 0.0
-    total_length = 0
-    total_progress = 0.0
-    completed = 0
-    for episode in range(episodes):
-        observation = sim.reset(seed=seed + episode)
-        episode_reward = 0.0
-        episode_length = 0
-        finished = False
-        for _ in range(max_steps):
-            action = algorithm.act(observation, deterministic=True)
-            step = sim.step(action)
-            total_progress += sim.progress(observation, step.observation)
-            observation = step.observation
-            episode_reward += float(step.reward)
-            episode_length += 1
-            if step.terminated or step.truncated:
-                finished = True
-                break
-        total_reward += episode_reward
-        total_length += episode_length
-        if finished:
-            completed += 1
-    return {
-        "mean_reward": total_reward / episodes,
-        "mean_episode_length": total_length / episodes,
-        "mean_progress": total_progress / episodes,
-        "episodes_completed": float(completed),
-    }
 
 
 def run_eval(

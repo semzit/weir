@@ -233,6 +233,9 @@ def test_cli_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
                 truncated=False,
             )
 
+        def progress(self, prev_observation: object, observation: object) -> float:
+            return 0.0
+
         def render_frame(self, width: int = 0, height: int = 0) -> np.ndarray:
             return np.zeros((height, width, 3), dtype=np.uint8)
 
@@ -326,11 +329,15 @@ def test_cli_plays_back_manifest_env(tmp_path: Path, monkeypatch: pytest.MonkeyP
                 (),
                 {
                     "observation": np.zeros(4, dtype=np.float32),
+                    "reward": 0.0,
                     "terminated": True,
                     "truncated": False,
                 },
             )
             return step()
+
+        def progress(self, prev_observation: object, observation: object) -> float:
+            return 0.0
 
         def render_frame(self, width: int = 0, height: int = 0) -> np.ndarray:
             return np.zeros((height, width, 3), dtype=np.uint8)

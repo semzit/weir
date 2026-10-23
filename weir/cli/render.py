@@ -8,6 +8,7 @@ from typing import Any
 import imageio.v2 as imageio
 
 from weir.core.interfaces import AlgorithmPlugin, SimBackend
+from weir.core.rollout import run_episode
 from weir.core.run import MANIFEST_NAME, Run
 from weir.envs.backends.mujoco import MuJoCoSim
 from weir.envs.wrappers.randomized import RandomizedSim
@@ -51,40 +52,42 @@ def render_episode(
 
     By default one frame is captured per ``1 / (dt * fps)`` simulation steps,
     so the video plays at roughly realtime speed regardless of the sim
-    timestep. Pass ``frame_interval=1`` to capture every step.
+    timestep. Pass ``frame_interval=1`` to capture every step; pass
+    ``frames_to_capture=None`` to keep rolling until the episode ends.
 
     When ``perturb_force > 0``, the rollout steps through a ``RandomizedSim``
     configured with neutral domain randomization and the perturbation knobs, so
     pushes come from the shared hardening wrapper, not a render-only path.
     """
-    if frame_interval is None:
-        frame_interval = max(1, round(1.0 / (sim.dt * fps)))
+    interval = frame_interval if frame_interval is not None else max(1, round(1.0 / (sim.dt * fps)))
     env: SimBackend = sim
     if perturb_force > 0:
         env = RandomizedSim(sim, _perturbation_config(perturb_force, perturb_prob, perturb_body))
     frames: list[Any] = []
-    observation = env.reset(seed=seed)
-    frames.append(sim.render_frame(width, height))
-    steps = 0
-    while frames_to_capture is None or len(frames) < frames_to_capture:
-        action = algo.act(observation, deterministic=True)
-        result = env.step(action)
-        observation = result.observation
-        steps += 1
-        if steps % frame_interval == 0:
-            frames.append(sim.render_frame(width, height))
-        if result.terminated or result.truncated:
-            break
+
+    def capture() -> None:
+        frames.append(sim.render_frame(width, height))
+
+    def capture_interval(step_index: int) -> None:
+        if step_index % interval == 0:
+            capture()
+
+    max_steps = (
+        sys.maxsize if frames_to_capture is None else max(0, (frames_to_capture - 1) * interval)
+    )
+    stats = run_episode(
+        env,
+        algo,
+        seed=seed,
+        max_steps=max_steps,
+        on_reset=capture,
+        on_step=capture_interval,
+    )
     if frames_to_capture is not None and len(frames) < frames_to_capture:
         print(
-            f"weir-render: episode ended after {steps} steps; captured "
+            f"weir-render: episode ended after {stats.length} steps; captured "
             f"{len(frames)} of {frames_to_capture} requested frames",
             file=sys.stderr,
-        )
-    if not frames:
-        raise RuntimeError(
-            "no frames were captured; the episode ended before the first frame interval "
-            f"({frame_interval} steps). Try --frame-interval 1"
         )
     imageio.mimsave(output_path, frames, fps=fps)
     return output_path
