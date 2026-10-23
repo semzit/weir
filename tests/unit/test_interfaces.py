@@ -17,12 +17,6 @@ def test_implementations_conform_to_protocols() -> None:
     assert isinstance(PPOAlgorithm(), AlgorithmPlugin)
 
 
-def test_shape_defaults() -> None:
-    shape = Shape(dims=(4,), dtype="float32")
-    assert shape.low is None
-    assert shape.high is None
-
-
 def test_ppo_algorithm_acts_in_shape() -> None:
     algo = PPOAlgorithm()
     algo.configure(

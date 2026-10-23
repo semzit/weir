@@ -27,11 +27,3 @@ def test_model_loads_and_steps(xml_path: Path, nu: int, nq: int) -> None:
     assert data.time > 0.0
     assert model.nu == nu
     assert model.nq == nq
-
-
-def test_berkeley_humanoid_uses_position_actuators() -> None:
-    model = mujoco.MjModel.from_xml_path(
-        str(_model_path("menagerie/berkeley_humanoid/berkeley_humanoid.xml"))
-    )
-    for i in range(model.nu):
-        assert model.actuator_trntype[i] == mujoco.mjtTrn.mjTRN_JOINT

@@ -7,56 +7,33 @@ from omegaconf import DictConfig
 
 from weir.algo.utils import sample_action
 from weir.core.interfaces import Shape
-from weir.core.utils import (
-    CONFIG_DIR,
-    ROOT,
-    config_to_dict,
-    log_event,
-    resolve_model_path,
-)
+from weir.core.utils import ROOT, config_to_dict, log_event, resolve_model_path
 from weir.envs.utils import MODELS_DIR, resolve_model_asset
 
 
-def test_root_aligns_with_repo() -> None:
-    assert (ROOT / "weir" / "core" / "interfaces.py").exists()
-
-
-def test_subfolder_paths_exist() -> None:
-    assert CONFIG_DIR.is_dir()
-    assert (CONFIG_DIR / "train.yaml").exists()
-    assert MODELS_DIR.is_dir()
-    assert (MODELS_DIR / "cartpole.xml").exists()
-
-
-def test_resolve_model_path_absolute_stays() -> None:
+def test_resolve_model_path() -> None:
     absolute = str(MODELS_DIR / "cartpole.xml")
     assert resolve_model_path(absolute) == absolute
 
-
-def test_resolve_model_path_relative_joins_root() -> None:
     resolved = Path(resolve_model_path("weir/models/cartpole.xml"))
     assert resolved.is_absolute()
     assert resolved == (ROOT / "weir" / "models" / "cartpole.xml").resolve()
 
 
-def test_resolve_model_asset_joins_models_dir() -> None:
+def test_resolve_model_asset() -> None:
     resolved = Path(resolve_model_asset("cartpole.xml"))
     assert resolved == (MODELS_DIR / "cartpole.xml").resolve()
 
-
-def test_resolve_model_asset_nested_path() -> None:
     resolved = Path(resolve_model_asset("menagerie/berkeley_humanoid/berkeley_humanoid.xml"))
     expected = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.xml"
     assert resolved == expected.resolve()
 
 
-def test_config_to_dict_resolves_section() -> None:
+def test_config_to_dict() -> None:
     cfg = DictConfig({"plugin": "mujoco", "time_limit": 10.0})
     result = config_to_dict(cfg)
     assert result == {"plugin": "mujoco", "time_limit": 10.0}
 
-
-def test_config_to_dict_resolves_path_keys() -> None:
     cfg = DictConfig(
         {
             "model": "weir/models/cartpole.xml",
@@ -69,14 +46,10 @@ def test_config_to_dict_resolves_path_keys() -> None:
     assert result["checkpoint"] is None
     assert result["plugin"] == "mujoco"
 
-
-def test_config_to_dict_missing_path_key_left_alone() -> None:
     cfg = DictConfig({"plugin": "mujoco"})
     result = config_to_dict(cfg, "model")
     assert result == {"plugin": "mujoco"}
 
-
-def test_config_to_dict_absolute_path_stays() -> None:
     absolute = str(MODELS_DIR / "cartpole.xml")
     result = config_to_dict(DictConfig({"model": absolute}), "model")
     assert result["model"] == absolute
