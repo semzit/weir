@@ -192,6 +192,24 @@ def test_walk_forward_injects_nq_from_model() -> None:
     assert reward(push=True) > reward(push=False)
 
 
+def test_apply_perturbation_targets_the_requested_body() -> None:
+    """The body index selects the model body: 1 is the cart, 2 is the pole."""
+
+    def observation_after_push(body: int) -> np.ndarray:
+        sim = make_sim(CART_POLE)
+        sim.reset(seed=0)
+        sim.apply_perturbation(np.array([50.0, 0.0, 0.0]), body=body)
+        result = sim.step(np.zeros(1, dtype=np.float32))
+        sim.close()
+        return result.observation
+
+    cart_push = observation_after_push(1)
+    pole_push = observation_after_push(2)
+    # obs = [cart_x, pole_angle, cart_v, pole_omega]
+    assert abs(cart_push[2]) > abs(pole_push[2])
+    assert abs(pole_push[3]) > abs(cart_push[3])
+
+
 @settings(max_examples=40, deadline=None)
 @given(seed=st.integers(0, 1000), steps=st.integers(1, 15))
 def test_rollout_conforms_to_shapes(seed: int, steps: int) -> None:

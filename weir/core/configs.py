@@ -45,6 +45,7 @@ class RandomizationConfig(BaseModel):
     latency_steps: int
     perturbation_force: float
     perturbation_prob: float
+    perturbation_body: int
 
 
 class AlgorithmConfig(BaseModel):
