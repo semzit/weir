@@ -32,6 +32,7 @@ RANDOMIZATION = {
     "latency_steps": 0,
     "perturbation_force": 0.0,
     "perturbation_prob": 0.0,
+    "perturbation_body": 1,
 }
 
 NEUTRAL_RANDOMIZATION = {
@@ -43,4 +44,5 @@ NEUTRAL_RANDOMIZATION = {
     "latency_steps": 0,
     "perturbation_force": 0.0,
     "perturbation_prob": 0.0,
+    "perturbation_body": 1,
 }

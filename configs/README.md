@@ -121,8 +121,9 @@ learned from this task; it exists for demo renders, not training.
 | `randomization.noise_std` | `0.0` | Std of Gaussian noise added to observations. |
 | `randomization.action_noise_std` | `0.0` | Std of Gaussian noise added to actions. |
 | `randomization.latency_steps` | `0` | Action delay in whole steps (0 = none). |
-| `randomization.perturbation_force` | `0.0` | Std of random root-body pushes (0 = none). |
+| `randomization.perturbation_force` | `0.0` | Std of random body pushes (0 = none). |
 | `randomization.perturbation_prob` | `0.0` | Per-step probability of a push. |
+| `randomization.perturbation_body` | `1` | Body index to push (1 = root; cartpole pole is 2). |
 
 The `randomization` block only takes effect when `robust: true`.
 

@@ -6,11 +6,30 @@ from pathlib import Path
 from typing import Any
 
 import imageio.v2 as imageio
-import numpy as np
 
-from weir.core.interfaces import AlgorithmPlugin, DomainRandomizable
+from weir.core.interfaces import AlgorithmPlugin, SimBackend
 from weir.core.run import MANIFEST_NAME, Run
 from weir.envs.backends.mujoco import MuJoCoSim
+from weir.envs.wrappers.randomized import RandomizedSim
+
+_NEUTRAL_RANDOMIZATION = {
+    "mass_scale": (1.0, 1.0),
+    "friction_scale": (1.0, 1.0),
+    "damping_scale": (1.0, 1.0),
+    "noise_std": 0.0,
+    "action_noise_std": 0.0,
+    "latency_steps": 0,
+}
+
+
+def _perturbation_config(force: float, prob: float, body: int) -> dict[str, Any]:
+    """Neutral hardening with only the perturbation knobs enabled."""
+    return {
+        **_NEUTRAL_RANDOMIZATION,
+        "perturbation_force": force,
+        "perturbation_prob": prob,
+        "perturbation_body": body,
+    }
 
 
 def render_episode(
@@ -34,31 +53,22 @@ def render_episode(
     so the video plays at roughly realtime speed regardless of the sim
     timestep. Pass ``frame_interval=1`` to capture every step.
 
-    When ``perturb_force > 0``, random perturbation pushes (magnitude drawn
-    from ``N(0, perturb_force)``) are applied to the given body with
-    probability ``perturb_prob`` each step, showing the policy recovering
-    from disturbances. Requires a ``DomainRandomizable`` sim (MuJoCoSim).
+    When ``perturb_force > 0``, the rollout steps through a ``RandomizedSim``
+    configured with neutral domain randomization and the perturbation knobs, so
+    pushes come from the shared hardening wrapper, not a render-only path.
     """
     if frame_interval is None:
         frame_interval = max(1, round(1.0 / (sim.dt * fps)))
-    rng = np.random.default_rng(seed + 1)
+    env: SimBackend = sim
+    if perturb_force > 0:
+        env = RandomizedSim(sim, _perturbation_config(perturb_force, perturb_prob, perturb_body))
     frames: list[Any] = []
-    observation = sim.reset(seed=seed)
+    observation = env.reset(seed=seed)
     frames.append(sim.render_frame(width, height))
     steps = 0
     while frames_to_capture is None or len(frames) < frames_to_capture:
-        if perturb_force > 0 and perturb_prob > 0 and rng.random() < perturb_prob:
-            if isinstance(sim, DomainRandomizable):
-                sim.apply_perturbation(rng.normal(0.0, perturb_force, size=3), body=perturb_body)
-                perturbed = True
-            else:
-                perturbed = False
-        else:
-            perturbed = False
         action = algo.act(observation, deterministic=True)
-        result = sim.step(action)
-        if perturbed:
-            sim.apply_perturbation(np.zeros(3), body=perturb_body)  # one-step push, then release
+        result = env.step(action)
         observation = result.observation
         steps += 1
         if steps % frame_interval == 0:

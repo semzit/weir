@@ -50,7 +50,7 @@ class RandomizedSim(SimBackend):
             self._maybe_perturb(inner, perturbation_force)
         result = inner.step(action)
         if isinstance(inner, DomainRandomizable) and perturbation_force > 0:
-            inner.apply_perturbation(np.zeros(3))
+            inner.apply_perturbation(np.zeros(3), body=self._config["perturbation_body"])
         observation = self._add_noise(result.observation, self._config["noise_std"])
         return SimStep(
             observation=observation,
@@ -101,4 +101,6 @@ class RandomizedSim(SimBackend):
         prob = self._config["perturbation_prob"]
         if force <= 0 or self._rng.random() >= prob:
             return
-        inner.apply_perturbation(self._rng.normal(0.0, force, size=3))
+        inner.apply_perturbation(
+            self._rng.normal(0.0, force, size=3), body=self._config["perturbation_body"]
+        )

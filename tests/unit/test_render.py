@@ -119,6 +119,14 @@ def test_render_episode_applies_perturbations(tmp_path: Path) -> None:
     class RecordingSim(MuJoCoSim):
         def __init__(self) -> None:
             super().__init__()
+            self.load(
+                {"name": "cartpole", "model": str(CART_POLE)},
+                {
+                    "task": {"name": "survive", "params": {}},
+                    "time_limit": 5.0,
+                    "initial_noise": 0.0,
+                },
+            )
             self.pushes: list[tuple[float, int]] = []
             self.clears = 0
 
@@ -135,6 +143,7 @@ def test_render_episode_applies_perturbations(tmp_path: Path) -> None:
                 (),
                 {
                     "observation": np.zeros(4, dtype=np.float32),
+                    "reward": 0.0,
                     "terminated": False,
                     "truncated": False,
                 },
