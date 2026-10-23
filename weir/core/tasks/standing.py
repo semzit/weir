@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from weir.core.interfaces import Action, Observation
+from weir.core.tasks.utils import root_height
 
 
 @dataclass(slots=True)
@@ -26,7 +27,7 @@ class StandingTask:
         return 0.0 if self.terminated(observation) else self.live_reward
 
     def terminated(self, observation: Observation) -> bool:
-        return float(observation[2]) < self.min_height
+        return root_height(observation) < self.min_height
 
     def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
         return 0.0
