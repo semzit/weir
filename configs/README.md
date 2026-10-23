@@ -127,6 +127,20 @@ learned from this task; it exists for demo renders, not training.
 
 The `randomization` block only takes effect when `robust: true`.
 
+### Test-time perturbation
+
+Evaluation and rendering accept the same disturbance flags:
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--perturb-force` | `0.0` | Push magnitude; `0` disables perturbations. |
+| `--perturb-prob` | `0.05` | Per-step probability of a push. |
+| `--perturb-body` | `1` | Body index to push (1 = root; cartpole pole is 2). |
+
+For a robust run, these flags override only the perturbation knobs and keep the
+manifest's mass, friction, damping, noise, and latency settings. For a non-robust
+run, they enable pushes with otherwise neutral domain randomization.
+
 ### `algo/ppo.yaml` — the algorithm (PPO via stable-baselines3)
 
 | Key | Default | Meaning |
