@@ -9,8 +9,8 @@ from hydra import compose, initialize
 from omegaconf import DictConfig
 
 from weir.algo.ppo import PPOAlgorithm
-from weir.cli.eval import run_eval
-from weir.cli.train import run
+from weir.core.application.evaluate import run_eval
+from weir.core.application.train import run
 from weir.core.utils import CONFIG_DIR
 
 ROOT = Path(__file__).parents[2]

@@ -136,7 +136,7 @@ uv run weir-train agent=humanoid task=walk_forward algo.n_steps=4096
 ```
 weir/
 ├── cli/            # entry points: train, eval, export, render
-├── core/           # protocols, tasks, factory, shared utils
+├── core/           # protocols, tasks, application, shared utils
 ├── envs/
 │   ├── backends/   # SimBackend implementations (mujoco)
 │   ├── wrappers/   # SimBackend decorators (sim-to-real hardening)
