@@ -16,8 +16,12 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      MUJOCO_GL: egl
+      LIBGL_ALWAYS_SOFTWARE: "1"
     steps:
       - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libegl-mesa0 libgl1
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.2"
