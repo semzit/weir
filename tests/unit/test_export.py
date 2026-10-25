@@ -98,7 +98,11 @@ def _write_manifest(directory: Path, *, plugin: str = "ppo", obs_dim: int = OBS_
     )
 
 
-def test_cli_exports_and_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_exports_and_verifies(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     checkpoint = tmp_path / "policy.zip"
     algorithm = FakeAlgorithm()
     algorithm.save(checkpoint)
@@ -122,6 +126,7 @@ def test_cli_exports_and_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert main() == 0
     assert output.exists()
     assert verify_export(algorithm.policy, output, obs_dim=OBS_DIM)
+    assert f"Exported policy to {output}" in capsys.readouterr().out
 
 
 def test_cli_returns_nonzero_on_verification_failure(

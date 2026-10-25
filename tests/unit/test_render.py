@@ -273,7 +273,7 @@ def test_cli_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         def open(cls, _checkpoint: object) -> FakeRun:
             return cls()
 
-    monkeypatch.setattr("weir.cli.render.Run", FakeRun)
+    monkeypatch.setattr("weir.core.application.render.Run", FakeRun)
     output = tmp_path / "cli.mp4"
     monkeypatch.setattr(
         sys,
@@ -387,7 +387,7 @@ def test_cli_plays_back_manifest_env(tmp_path: Path, monkeypatch: pytest.MonkeyP
         def open(cls, _checkpoint: object) -> FakeRun:
             return cls()
 
-    monkeypatch.setattr("weir.cli.render.Run", FakeRun)
+    monkeypatch.setattr("weir.core.application.render.Run", FakeRun)
     output = tmp_path / "playback.mp4"
     monkeypatch.setattr(
         sys,

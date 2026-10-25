@@ -4,7 +4,7 @@ from pathlib import Path
 
 from weir.core.configs import RandomizationConfig
 from weir.core.rollout import rollout_metrics
-from weir.core.run import MANIFEST_NAME, Run, build_test_env
+from weir.core.run import Run, build_test_env
 from weir.core.utils import compose_config, config_to_dict, create_algorithm
 
 _FIXED_OVERRIDE_KEYS = ("agent", "algo")
@@ -19,20 +19,34 @@ def run_eval(
     overrides: list[str] | None = None,
     perturbation: RandomizationConfig | None = None,
 ) -> dict[str, float]:
-    """Evaluate a checkpoint, driven by its manifest.
+    """Open a checkpoint and evaluate it."""
+    return evaluate_run(
+        Run.open(checkpoint),
+        episodes=episodes,
+        seed=seed,
+        max_steps=max_steps,
+        overrides=overrides,
+        perturbation=perturbation,
+    )
+
+
+def evaluate_run(
+    run: Run,
+    *,
+    episodes: int,
+    seed: int,
+    max_steps: int,
+    overrides: list[str] | None = None,
+    perturbation: RandomizationConfig | None = None,
+) -> dict[str, float]:
+    """Evaluate an open run, driven by its manifest.
 
     ``--override`` layers on top of the manifest: the run's agent/task are used
     as the base so e.g. ``--override task.params.x=1`` tweaks the run's own
     task. ``perturbation`` enables disturbance pushes on top of the manifest's
     hardening settings.
     """
-    run = Run.open(checkpoint)
-    manifest = run.config
-    if manifest is None:
-        raise ValueError(
-            f"No manifest ({MANIFEST_NAME}) next to {checkpoint}: this checkpoint "
-            "predates run manifests; re-train to create one"
-        )
+    manifest = run.require_config()
     if not overrides:
         agent_config = dict(manifest["agent"])
         sim_config = dict(manifest["sim"])
@@ -48,7 +62,7 @@ def run_eval(
         task_config = config_to_dict(cfg.task)
         algorithm_config = config_to_dict(cfg.algo)
         algorithm = create_algorithm(str(algorithm_config["plugin"]))
-        algorithm.load(checkpoint)
+        algorithm.load(run.checkpoint)
     env = build_test_env(agent_config, sim_config, task_config, perturbation=perturbation)
     try:
         run.validate(env.sim)
