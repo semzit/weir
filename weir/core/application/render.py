@@ -6,8 +6,48 @@ from typing import Any
 
 import imageio.v2 as imageio
 
+from weir.core.configs import RandomizationConfig
 from weir.core.interfaces import AlgorithmPlugin, FrameSource, SimBackend
 from weir.core.rollout import run_episode
+from weir.core.run import Run
+
+
+def run_render(
+    checkpoint: Path,
+    output_path: Path,
+    *,
+    frames_to_capture: int | None = None,
+    frame_interval: int | None = None,
+    width: int = 640,
+    height: int = 480,
+    fps: int = 30,
+    seed: int = 0,
+    perturbation: RandomizationConfig | None = None,
+) -> Path:
+    """Render a checkpoint's rollout using its manifest environment."""
+    run = Run.open(checkpoint)
+    env = run.test_env(perturbation=perturbation)
+    try:
+        if env.frames is None:
+            raise ValueError(
+                "render requires a simulator with render_frame; "
+                "the manifest's backend does not expose it"
+            )
+        run.validate(env.sim)
+        return render_episode(
+            env.sim,
+            env.frames,
+            run.algorithm(),
+            output_path,
+            frames_to_capture=frames_to_capture,
+            frame_interval=frame_interval,
+            width=width,
+            height=height,
+            fps=fps,
+            seed=seed,
+        )
+    finally:
+        env.sim.close()
 
 
 def render_episode(

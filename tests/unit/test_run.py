@@ -52,9 +52,16 @@ def make_run(
 
 def test_open_without_manifest_is_legacy() -> None:
     run = Run.open(Path("/nowhere/checkpoint.zip"))
+    assert run.checkpoint == Path("/nowhere/checkpoint.zip")
     assert run.config is None
     assert run.obs_dim() is None
     assert run.plugin("algo") is None
+
+
+def test_require_config_rejects_legacy_checkpoint() -> None:
+    run = Run.open(Path("/nowhere/checkpoint.zip"))
+    with pytest.raises(ValueError, match="No manifest"):
+        run.require_config()
 
 
 def test_open_reads_manifest(tmp_path: Path) -> None:

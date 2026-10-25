@@ -77,11 +77,7 @@ def run_export(
     The algorithm plugin and observation dimension come from the run manifest.
     """
     run = Run.open(checkpoint)
-    if run.config is None:
-        raise ValueError(
-            f"No manifest ({MANIFEST_NAME}) next to {checkpoint}: this checkpoint "
-            "predates run manifests; re-train to create one"
-        )
+    run.require_config()
     plugin = run.plugin("algo")
     if plugin is None:
         raise ValueError(f"No 'algo.plugin' in manifest ({MANIFEST_NAME}) next to {checkpoint}")

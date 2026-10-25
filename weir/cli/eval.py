@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from weir.cli.utils import add_perturbation_args, guarded_main, perturbation_from_args
-from weir.core.application.evaluate import run_eval
+from weir.core.application.evaluate import evaluate_run
 from weir.core.run import Run
 
 
@@ -32,23 +32,21 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _run_eval_from_args(args: argparse.Namespace) -> dict[str, Any]:
-    metrics = run_eval(
-        args.checkpoint,
+    run = Run.open(args.checkpoint)
+    metrics = evaluate_run(
+        run,
         episodes=args.episodes,
         seed=args.seed,
         max_steps=args.max_steps,
         overrides=args.override,
         perturbation=perturbation_from_args(args),
     )
-    run = Run.open(args.checkpoint)
-    config = run.config or {}
-    agent_name = str(config.get("agent", {}).get("name", "unknown"))
-    task_name = str(config.get("task", {}).get("name", "unknown"))
+    manifest = run.require_config()
     return {
         "metrics": metrics,
-        "checkpoint": str(args.checkpoint),
-        "agent": agent_name,
-        "task": task_name,
+        "checkpoint": str(run.checkpoint),
+        "agent": str(manifest["agent"]["name"]),
+        "task": str(manifest["task"]["name"]),
     }
 
 

@@ -96,6 +96,11 @@ class Run:
         return cls(checkpoint, None)
 
     @property
+    def checkpoint(self) -> Path:
+        """The checkpoint file this run points at."""
+        return self._checkpoint
+
+    @property
     def config(self) -> dict[str, Any] | None:
         """The resolved training config from the manifest, or None."""
         return self._config
@@ -113,7 +118,7 @@ class Run:
 
     def test_env(self, *, perturbation: RandomizationConfig | None = None) -> TestEnv:
         """Build and load the run's test environment, optionally with perturbation enabled."""
-        config = self._require_config()
+        config = self.require_config()
         return build_test_env(
             dict(config["agent"]),
             dict(config["sim"]),
@@ -156,10 +161,12 @@ class Run:
                 f"but this simulator produces {act}"
             )
 
-    def _require_config(self) -> dict[str, Any]:
+    def require_config(self) -> dict[str, Any]:
+        """Return the manifest config, raising if the checkpoint has no manifest."""
         if self._config is None:
+            manifest = self._checkpoint.with_suffix(".meta.json")
             raise ValueError(
-                f"No manifest ({MANIFEST_NAME}) next to {self._checkpoint}; "
+                f"No manifest ({manifest}) next to {self._checkpoint}; "
                 "pass the configuration explicitly instead."
             )
         return self._config

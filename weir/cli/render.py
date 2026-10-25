@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from weir.cli.utils import add_perturbation_args, guarded_main, perturbation_from_args
-from weir.core.application.render import render_episode
-from weir.core.run import MANIFEST_NAME, Run
+from weir.core.application.render import run_render
 
 
 def _add_video_args(parser: argparse.ArgumentParser) -> None:
@@ -42,34 +41,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _run_render_from_args(args: argparse.Namespace) -> dict[str, Any]:
-    run = Run.open(args.checkpoint)
-    if run.config is None:
-        raise ValueError(
-            f"no manifest ({MANIFEST_NAME}) next to {args.checkpoint}: "
-            "this checkpoint predates run manifests; re-train to create one"
-        )
-    env = run.test_env(perturbation=perturbation_from_args(args))
-    try:
-        if env.frames is None:
-            raise ValueError(
-                "render requires a simulator with render_frame; "
-                "the manifest's backend does not expose it"
-            )
-        run.validate(env.sim)
-        output_path = render_episode(
-            env.sim,
-            env.frames,
-            run.algorithm(),
-            Path(args.output),
-            frames_to_capture=args.frames,
-            frame_interval=args.frame_interval,
-            width=args.width,
-            height=args.height,
-            fps=args.fps,
-            seed=args.seed,
-        )
-    finally:
-        env.sim.close()
+    output_path = run_render(
+        args.checkpoint,
+        Path(args.output),
+        frames_to_capture=args.frames,
+        frame_interval=args.frame_interval,
+        width=args.width,
+        height=args.height,
+        fps=args.fps,
+        seed=args.seed,
+        perturbation=perturbation_from_args(args),
+    )
     return {"output": str(output_path)}
 
 
