@@ -9,7 +9,7 @@ import pytest
 from conftest import PPO_CONFIG
 
 from weir.cli.render import main as render_main
-from weir.cli.render import render_episode
+from weir.core.application.render import render_episode
 from weir.core.configs import RandomizationConfig
 from weir.core.interfaces import SimStep
 from weir.core.run import TestEnv as LoadedTestEnv

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any, cast
 
-from omegaconf import OmegaConf
+from hydra import compose, initialize
+from omegaconf import DictConfig, OmegaConf
 
 from weir.algo.ppo import PPOAlgorithm
 from weir.core.interfaces import AlgorithmPlugin, SimBackend
@@ -12,6 +14,7 @@ from weir.envs.backends.mujoco import MuJoCoSim
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT / "configs"
+CONFIG_RELATIVE = str(os.path.relpath(CONFIG_DIR, Path(__file__).parent))
 
 SIMS: dict[str, type[SimBackend]] = {
     "mujoco": MuJoCoSim,
@@ -55,6 +58,15 @@ def config_to_dict(section: Any, *path_keys: str) -> dict[str, Any]:
         if resolved.get(key):
             resolved[key] = resolve_model_path(str(resolved[key]))
     return resolved
+
+
+def compose_config(agent: str, task: str, overrides: list[str] | None = None) -> DictConfig:
+    """Compose the train config with the requested agent, task, and extra overrides."""
+    with initialize(version_base=None, config_path=CONFIG_RELATIVE):
+        return compose(
+            config_name="train",
+            overrides=[f"agent={agent}", f"task={task}", *(overrides or [])],
+        )
 
 
 _RESERVED = {

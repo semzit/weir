@@ -33,7 +33,9 @@ def test_cli_evaluates_and_prints_summary(
         encoding="utf-8",
     )
     monkeypatch.setattr("weir.core.run.create_sim", lambda _name: FakeSim())
-    monkeypatch.setattr("weir.cli.eval.create_algorithm", lambda _name: FakeAlgorithm())
+    monkeypatch.setattr(
+        "weir.core.application.evaluate.create_algorithm", lambda _name: FakeAlgorithm()
+    )
     monkeypatch.setattr(
         sys,
         "argv",
