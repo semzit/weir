@@ -97,10 +97,22 @@ uv sync --group dev --extra cpu
 uv sync --group dev --extra gpu
 ```
 
-Every `uv run` command carries the extra you synced with. Training picks the device
-automatically (`algo.device: auto` in `configs/algo/ppo.yaml` — CUDA when available); force it
-with `algo.device=cpu` or `algo.device=cuda`. For small policies the CPU is often faster —
-the GPU pays off on the humanoid walk training.
+Every `uv run` command carries the extra you synced with. Training defaults to CPU
+(`algo.device: cpu` in `configs/algo/ppo.yaml`); force GPU with `algo.device=cuda`. For small
+policies the CPU is often faster — the GPU pays off on the humanoid walk training.
+
+## Cloud image
+
+CI publishes the GPU training image to GitHub Container Registry on pushes to `main`:
+
+```text
+ghcr.io/semzit/weir:<full-git-sha>
+ghcr.io/semzit/weir:latest
+```
+
+The image installs the locked `gpu` extra and is smoke-tested with the CPU extra in CI. Make the
+published package public in GitHub package settings so AWS Batch can pull it anonymously. Local
+commands are unchanged.
 
 ## Configuration
 
