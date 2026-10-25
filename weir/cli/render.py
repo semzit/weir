@@ -137,13 +137,12 @@ def _print_output(result: dict[str, Any]) -> None:
     print(f"Rendered rollout to {result['output']}")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main() -> int:
     return guarded_main(
         build_parser(),
         _run_render_from_args,
         "render",
         on_success=_print_output,
-        argv=argv,
     )
 
 

@@ -72,10 +72,9 @@ def guarded_main(
     event: str,
     *,
     on_success: Callable[[dict[str, Any]], None] | None = None,
-    argv: list[str] | None = None,
 ) -> int:
     """Parse args, run, and log the outcome; return 0 on success, 1 on failure."""
-    args = parser.parse_args(argv)
+    args = parser.parse_args()
     setup_logging()
     try:
         result = runner(args)
