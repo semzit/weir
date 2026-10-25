@@ -125,13 +125,12 @@ def _print_metrics(result: dict[str, Any]) -> None:
         print(f"{key}: {value:.3f}")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main() -> int:
     return guarded_main(
         build_parser(),
         _run_eval_from_args,
         "eval",
         on_success=_print_metrics,
-        argv=argv,
     )
 
 
