@@ -1,0 +1,7 @@
+region       = "us-east-1"
+image_tag    = "latest"
+budget_email = "you@example.com"
+
+# gpu_instance_type = "g5.xlarge"
+# max_vcpus         = 8
+# monthly_budget_usd = 50

@@ -13,6 +13,7 @@ from weir.core.interfaces import Shape, SimBackend
 from weir.core.run import Run
 from weir.core.utils import config_to_dict, create_algorithm, log_event
 from weir.envs.gym_env import GymEnv
+from weir.envs.utils import model_asset_reference
 
 logger = logging.getLogger("weir")
 
@@ -35,9 +36,12 @@ def _write_manifest(
 ) -> Path:
     """Write the run manifest so downstream tools can rebuild the environment."""
     manifest = checkpoint.with_suffix(".meta.json")
+    portable_agent = dict(agent)
+    if portable_agent.get("model"):
+        portable_agent["model"] = model_asset_reference(str(portable_agent["model"]))
     payload = {
         "version": 1,
-        "agent": agent,
+        "agent": portable_agent,
         "task": task,
         "sim": sim_config,
         "algo": algorithm_config,

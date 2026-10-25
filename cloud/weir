@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  cat <<'EOF'
+usage: cloud/weir <command> [args...]
+
+Commands:
+  setup <region>        Create the OpenTofu state bucket and initialize the backend.
+  deploy                Apply the Batch stack using the current git SHA as image_tag.
+  train [overrides...]  Submit a GPU training job (algo.device=cuda is prepended).
+  status [job-id]       Show recent jobs or one job.
+  logs [job-id]         Show logs for a job; add --follow to stream.
+  pull [run-id|job-id]  Download run artifacts from S3.
+  cancel [run-id|job-id] Terminate a running job.
+  destroy               Destroy the Batch stack (keeps the state bucket).
+
+Environment:
+  WEIR_REGION           AWS region for setup.
+  WEIR_IMAGE_TAG        Image tag for deploy; defaults to the current git SHA.
+  WEIR_RUN_ID           Override the generated run id for train.
+EOF
+}
+
+command="${1:-}"
+case "$command" in
+  setup)
+    shift
+    exec "$SCRIPT_DIR/bootstrap.sh" "$@"
+    ;;
+  deploy)
+    shift
+    exec "$SCRIPT_DIR/deploy.sh" "$@"
+    ;;
+  train)
+    shift
+    exec "$SCRIPT_DIR/run.sh" "$@"
+    ;;
+  status)
+    shift
+    exec "$SCRIPT_DIR/status.sh" "$@"
+    ;;
+  logs)
+    shift
+    exec "$SCRIPT_DIR/logs.sh" "$@"
+    ;;
+  pull)
+    shift
+    exec "$SCRIPT_DIR/pull.sh" "$@"
+    ;;
+  cancel)
+    shift
+    exec "$SCRIPT_DIR/cancel.sh" "$@"
+    ;;
+  destroy)
+    shift
+    exec "$SCRIPT_DIR/destroy.sh" "$@"
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  "")
+    usage
+    exit 1
+    ;;
+  *)
+    printf 'weir: unknown command: %s\n' "$command" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

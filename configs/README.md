@@ -73,7 +73,7 @@ Rules:
 | Key | Example | Meaning |
 |---|---|---|
 | `name` | `berkeley_humanoid` | Label recorded in run manifests and logs. |
-| `model` | `weir/models/menagerie/...xml` | Path to the MuJoCo XML asset (repo-relative). |
+| `model` | `weir/models/menagerie/...xml` | Path to the MuJoCo XML asset (repo-relative; manifests store it relative to `weir/models`). |
 
 ### `task/*.yaml` — the objective
 

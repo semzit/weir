@@ -78,9 +78,10 @@ uv run --extra cpu weir-render --checkpoint outputs/2026-08-15/<run>/checkpoint.
 uv run --extra cpu weir-export --checkpoint outputs/2026-08-15/<run>/checkpoint.zip
 ```
 
-Every run writes a manifest (`checkpoint.meta.json`) beside the checkpoint with the resolved
-config and shapes; the tools above rebuild the environment from it, so a checkpoint can't be
-paired with the wrong model — no flags needed. Runs trained with `sim.robust=true` stay
+Every run writes a manifest (`checkpoint.meta.json`) beside the checkpoint with the config and
+shapes; the tools above rebuild the environment from it, so a checkpoint can't be paired with the
+wrong model — no flags needed. Model paths are stored relative to `weir/models` when possible, so
+the same run works on the host and in the container. Runs trained with `sim.robust=true` stay
 hardened when evaluated and rendered. Both commands accept the same `--perturb-force`,
 `--perturb-prob`, and `--perturb-body` flags to add test-time pushes.
 
@@ -113,6 +114,25 @@ ghcr.io/semzit/weir:latest
 The image installs the locked `gpu` extra and is smoke-tested with the CPU extra in CI. Make the
 published package public in GitHub package settings so AWS Batch can pull it anonymously. Local
 commands are unchanged.
+
+## Cloud training
+
+`infra/` provisions an AWS Batch GPU queue, private S3 artifact bucket, IAM roles, CloudWatch
+logs, and a monthly EC2 budget. The `cloud/weir` wrapper drives the stack:
+
+```bash
+cloud/weir setup us-east-1
+cp infra/terraform.tfvars.example infra/terraform.tfvars  # edit region, budget_email, image_tag
+cloud/weir deploy
+cloud/weir train agent=humanoid task=walk_forward train.total_steps=500000
+cloud/weir status
+cloud/weir logs <job-id> --follow
+cloud/weir pull <run-id>
+```
+
+`train` prepends `algo.device=cuda`; artifacts land under `s3://.../runs/<run-id>/`. The wrapper
+needs OpenTofu, AWS CLI v2, `jq`, and AWS credentials. See `infra/README.md` for quotas and manual
+OpenTofu steps.
 
 ## Configuration
 

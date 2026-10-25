@@ -40,7 +40,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY weir ./weir
 COPY configs ./configs
-COPY cloud ./cloud
+COPY cloud/entrypoint.sh ./cloud/entrypoint.sh
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --extra "${TORCH_EXTRA}"

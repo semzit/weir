@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 from typing import Any
 
 import mujoco
@@ -9,6 +10,7 @@ import numpy as np
 from weir.core.configs import SimConfig
 from weir.core.interfaces import Action, Observation, Shape, SimBackend, SimStep
 from weir.core.tasks import TASKS, Task
+from weir.envs.utils import resolve_model_asset
 
 
 def _perturb_joint_qpos(
@@ -46,6 +48,8 @@ class MuJoCoSim(SimBackend):
     def load(self, agent_config: dict[str, Any], sim_config: dict[str, Any]) -> None:
         cfg = SimConfig.model_validate(sim_config)
         model_path = str(agent_config["model"])
+        if not Path(model_path).is_absolute():
+            model_path = resolve_model_asset(model_path)
         model = mujoco.MjModel.from_xml_path(model_path)
         self._model = model
         if cfg.dt is not None:

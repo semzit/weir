@@ -35,8 +35,22 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - run: bash -n cloud/*.sh
-      - run: shellcheck cloud/*.sh
+      - run: bash -n cloud/*.sh cloud/weir
+      - run: shellcheck cloud/*.sh cloud/weir
+
+  infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.13.2"
+      - run: tofu fmt -check -recursive infra
+      - run: tofu -chdir=infra/bootstrap init -backend=false
+      - run: tofu -chdir=infra/bootstrap validate
+      - run: tofu -chdir=infra init -backend=false
+      - run: tofu -chdir=infra validate
 
   docker-smoke:
     needs: [quality, shell]
