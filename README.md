@@ -131,8 +131,8 @@ cloud/weir pull <run-id>
 ```
 
 `train` prepends `algo.device=cuda`; artifacts land under `s3://.../runs/<run-id>/`. The wrapper
-needs OpenTofu, AWS CLI v2, `jq`, and AWS credentials. See `infra/README.md` for quotas and manual
-OpenTofu steps.
+needs OpenTofu, AWS CLI v2, `jq`, and AWS credentials. See [`cloud/README.md`](cloud/README.md) for
+the full architecture and workflow, and `infra/README.md` for quotas and manual OpenTofu steps.
 
 ## Configuration
 
