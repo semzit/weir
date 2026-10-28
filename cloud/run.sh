@@ -14,15 +14,29 @@ ensure_deployed
 
 region=$(tofu_out region)
 bucket=$(tofu_out artifact_bucket)
-queue=$(tofu_out job_queue)
-job_definition=$(tofu_out job_definition)
 artifact_prefix=$(tofu_out artifact_uri_prefix)
+
+compute="${WEIR_COMPUTE:-gpu}"
+case "$compute" in
+  gpu)
+    queue=$(tofu_out job_queue)
+    job_definition=$(tofu_out job_definition)
+    overrides=("algo.device=cuda")
+    ;;
+  cpu)
+    queue=$(tofu_out cpu_job_queue)
+    job_definition=$(tofu_out cpu_job_definition)
+    overrides=("algo.device=cpu")
+    ;;
+  *)
+    die "WEIR_COMPUTE must be 'gpu' or 'cpu', got: $compute"
+    ;;
+esac
 
 run_id="${WEIR_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)}"
 [[ "$run_id" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid run id: $run_id"
 artifact_uri="${artifact_prefix}${run_id}/"
 
-overrides=("algo.device=cuda")
 overrides+=("$@")
 command_json=$(jq -nc --args '$ARGS.positional' "${overrides[@]}")
 container_overrides=$(jq -nc \

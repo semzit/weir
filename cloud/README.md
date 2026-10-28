@@ -7,12 +7,14 @@ container, then uploads the run directory to S3.
 The short version:
 
 - CI publishes a GPU image to GitHub Container Registry (GHCR).
-- OpenTofu creates an AWS Batch queue, IAM roles, a private S3 artifact bucket,
-  CloudWatch logs, and a monthly EC2 budget.
+- OpenTofu creates GPU and CPU AWS Batch queues, IAM roles, a private S3
+  artifact bucket, CloudWatch logs, and a monthly EC2 budget.
 - `cloud/weir` submits one Batch job per run and handles status, logs, artifact
   download, cancellation, and teardown.
-- The container checks for CUDA, trains under `/work/run`, and syncs artifacts
-  to S3 every 60 seconds and again on exit.
+- The container optionally checks for CUDA, trains under `/work/run`, and syncs
+  artifacts to S3 every 60 seconds and again on exit.
+- `WEIR_COMPUTE=gpu` uses the CUDA queue; `WEIR_COMPUTE=cpu` uses the parallel
+  MuJoCo queue.
 
 ## Architecture
 
@@ -22,18 +24,17 @@ Developer
         |
         | submit-job
         v
-  AWS Batch queue: weir-gpu
+  AWS Batch queues: weir-gpu / weir-cpu
         |
-        v
-  g5.xlarge worker
-        |
-        +--> pull ghcr.io/<repo>:<git-sha>
-        +--> cloud/entrypoint.sh
-               +--> CUDA check
-               +--> weir-train ... hydra.run.dir=/work/run
-               +--> aws s3 sync /work/run -> s3://.../runs/<run-id>/
-        |
-        +--> CloudWatch Logs: /aws/batch/weir
+        +--> g5.xlarge (CUDA) or c7i.4xlarge (parallel MuJoCo)
+               |
+               +--> pull ghcr.io/<repo>:<git-sha>
+               +--> cloud/entrypoint.sh
+                      +--> CUDA check (GPU only)
+                      +--> weir-train ... hydra.run.dir=/work/run
+                      +--> aws s3 sync /work/run -> s3://.../runs/<run-id>/
+               |
+               +--> CloudWatch Logs: /aws/batch/weir
 
   Private S3 artifact bucket
         |
@@ -57,7 +58,7 @@ A small shell wrapper around AWS CLI, OpenTofu, and `jq`:
 | --- | --- |
 | `cloud/weir setup <region>` | Create the state bucket, write `infra/backend.hcl`, initialize the main backend. |
 | `cloud/weir deploy` | Apply the Batch stack. Uses the current git SHA as the image tag unless `WEIR_IMAGE_TAG` is set. |
-| `cloud/weir train [overrides...]` | Submit a GPU job. Prepends `algo.device=cuda`, creates a run ID, and sets the S3 artifact URI. |
+| `cloud/weir train [overrides...]` | Submit a job. Uses `WEIR_COMPUTE=gpu` (default) or `cpu`, prepends the matching `algo.device`, creates a run ID, and sets the S3 artifact URI. |
 | `cloud/weir status [job-id]` | List jobs in the queue, or describe one job. |
 | `cloud/weir logs [job-id] --follow` | Read the CloudWatch log stream for a job. |
 | `cloud/weir pull [run-id\|job-id] [dest]` | Download run artifacts from S3. Defaults to `outputs/cloud/<run-id>/run`. |
@@ -104,6 +105,18 @@ public so workers can pull it anonymously. GitHub Packages may create it as
 private even when the repository is public; check the package settings after the
 first publish.
 
+The CPU queue uses the same image without a GPU reservation. It sets
+`WEIR_REQUIRE_GPU=0`, so the CUDA check is skipped. For MuJoCo training, request
+parallel environments explicitly:
+
+```bash
+WEIR_COMPUTE=cpu cloud/weir train agent=humanoid task=walk_forward \
+  algo.n_envs=8 algo.vec_env=subproc train.total_steps=2000000
+```
+
+The CPU job requests 16 vCPU and 30 GiB on a `c7i.4xlarge` by default. The GPU
+queue remains available for CUDA policy training or future MJX work.
+
 ### Artifacts
 
 Remote layout:
@@ -143,9 +156,10 @@ the bucket and read/write under `runs/`.
 
 - AWS credentials with permission to manage IAM, S3, Batch, CloudWatch, and
   Budgets. Prefer a dedicated deploy profile over the account root user.
-- On-Demand G/VT vCPU quota of at least 4 in the target region. The quota code
-  for G/VT On-Demand instances is `L-DB2E81BA`; both spot and on-demand G
-  quotas are commonly zero on new accounts.
+- For GPU runs: On-Demand G/VT vCPU quota of at least 4 in the target region.
+  The quota code is `L-DB2E81BA`; it is commonly zero on new accounts.
+- For CPU runs: On-Demand Standard vCPU quota of at least 16 in the target
+  region. The default account quota is usually sufficient.
 - A default VPC with working outbound internet.
 - A public GHCR image at the configured repository.
 - An email address for budget alerts.
@@ -156,11 +170,15 @@ the bucket and read/write under `runs/`.
 
 1. Publish the image by merging to `main`, or build and push it separately.
 2. Make the GHCR package public.
-3. Confirm the G/VT quota:
+3. Confirm the quota for the queue you plan to use:
 
    ```bash
+   # GPU
    aws service-quotas get-service-quota \
      --service-code ec2 --quota-code L-DB2E81BA --region us-east-1
+   # CPU (16 vCPU needed for the default CPU job)
+   aws service-quotas get-service-quota \
+     --service-code ec2 --quota-code L-1216C47A --region us-east-1
    ```
 
 4. Create the state backend:
@@ -191,12 +209,12 @@ the bucket and read/write under `runs/`.
 
 ## What happens on `cloud/weir train`
 
-1. The wrapper reads stack outputs from OpenTofu: region, artifact bucket, queue,
-   and job definition.
+1. The wrapper reads stack outputs from OpenTofu: region, artifact bucket, and
+   the selected CPU/GPU queue plus job definition.
 2. It creates a run ID such as `20261027T120000Z-c5d2fde`, or uses
    `WEIR_RUN_ID`.
 3. It builds a container override:
-   - `algo.device=cuda` is prepended to the Hydra overrides.
+   - `algo.device=cuda` or `algo.device=cpu` is prepended to the Hydra overrides.
    - `WEIR_ARTIFACTS_URI` is set to
      `s3://<artifact-bucket>/runs/<run-id>/`.
 4. It submits the job to Batch and writes local metadata under

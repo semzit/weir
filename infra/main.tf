@@ -46,6 +46,8 @@ locals {
   vcpus      = "4"
   memory     = "8192"
   gpus       = "1"
+  cpu_vcpus  = "16"
+  cpu_memory = "30000"
   timeout    = 21600
   retries    = 5
 

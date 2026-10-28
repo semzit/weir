@@ -31,6 +31,23 @@ variable "max_vcpus" {
   }
 }
 
+variable "cpu_instance_type" {
+  type        = string
+  description = "CPU instance type used by the parallel MuJoCo compute environment."
+  default     = "c7i.4xlarge"
+}
+
+variable "cpu_max_vcpus" {
+  type        = number
+  description = "Maximum vCPUs the CPU compute environment may scale to."
+  default     = 16
+
+  validation {
+    condition     = var.cpu_max_vcpus >= 16
+    error_message = "cpu_max_vcpus must be at least 16 so one CPU training job can run."
+  }
+}
+
 variable "budget_email" {
   type        = string
   description = "Email address that receives the monthly budget alerts."

@@ -12,7 +12,7 @@ require_cmd tofu
 ensure_deployed
 
 region=$(tofu_out region)
-queue=$(tofu_out job_queue)
+queues=("$(tofu_out job_queue)" "$(tofu_out cpu_job_queue)")
 
 printf 'JOB_ID\tNAME\tSTATUS\tCREATED\tEXIT\tREASON\n'
 
@@ -33,15 +33,17 @@ if [[ $# -gt 0 ]]; then
         (.statusReason // "-")
       ] | @tsv'
 else
-  aws batch list-jobs --job-queue "$queue" --region "$region" --output json |
-    jq -r '
-      .jobSummaryList[] |
-      [
-        .jobId,
-        .jobName,
-        .status,
-        (if .createdAt then (.createdAt / 1000 | todate) else "-" end),
-        ((.container.exitCode // "-") | tostring),
-        (.statusReason // "-")
-      ] | @tsv'
+  for queue in "${queues[@]}"; do
+    aws batch list-jobs --job-queue "$queue" --region "$region" --output json |
+      jq -r '
+        .jobSummaryList[] |
+        [
+          .jobId,
+          .jobName,
+          .status,
+          (if .createdAt then (.createdAt / 1000 | todate) else "-" end),
+          ((.container.exitCode // "-") | tostring),
+          (.statusReason // "-")
+        ] | @tsv'
+  done
 fi

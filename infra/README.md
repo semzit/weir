@@ -1,8 +1,8 @@
 # AWS Batch infrastructure
 
-OpenTofu provisions one GPU training stack: an S3 artifact bucket, IAM roles, a
-managed AWS Batch compute environment/queue, a job definition, CloudWatch logs,
-and a monthly EC2 budget.
+OpenTofu provisions a GPU and a CPU training stack: an S3 artifact bucket, IAM
+roles, managed AWS Batch compute environments/queues, job definitions,
+CloudWatch logs, and a monthly EC2 budget.
 
 The stack deliberately uses the account's default VPC and subnets. Those subnets
 must have outbound internet access so workers can pull the public GHCR image.
@@ -15,7 +15,8 @@ Workers get no inbound access.
   Budgets resources.
 - A public GHCR package at `ghcr.io/semzit/weir` (fork: change
   `image_repository`).
-- On-demand G-family vCPU quota of at least 4 in the target region.
+- For GPU runs: on-demand G-family vCPU quota of at least 4.
+- For CPU runs: on-demand Standard vCPU quota of at least 16.
 - An email address for budget alerts.
 - A default VPC in the target region.
 
@@ -50,24 +51,32 @@ it.
 
 ## Stack details
 
-- Instance type: `g5.xlarge`, on-demand.
-- Compute environment: 0 to 8 vCPUs, so at most two workers.
-- Job: 4 vCPU, 8192 MiB memory, 1 GPU, 6-hour timeout, 5 attempts.
-- AMI image type: `ECS_AL2023_NVIDIA`.
+- GPU instance type: `g5.xlarge`, on-demand.
+- GPU compute environment: 0 to 8 vCPUs, so at most two workers.
+- GPU job: 4 vCPU, 8192 MiB memory, 1 GPU, 6-hour timeout, 5 attempts.
+- GPU AMI image type: `ECS_AL2023_NVIDIA`.
+- CPU instance type: `c7i.4xlarge`, on-demand.
+- CPU compute environment: 0 to 16 vCPUs, one worker.
+- CPU job: 16 vCPU, 30000 MiB memory, no GPU, 6-hour timeout, 5 attempts.
+- CPU AMI image type: `ECS_AL2023`.
 - Artifacts: `s3://<artifact-bucket>/runs/`.
 - Logs: `/aws/batch/weir`, retained for 30 days.
 - Budget: $50/month for EC2, alerts at 80% and 100%.
 
-The job definition sets `WEIR_RUN_DIR`, `WEIR_REQUIRE_GPU`, `AWS_REGION`, and
+The job definitions set `WEIR_RUN_DIR`, `WEIR_REQUIRE_GPU`, `AWS_REGION`, and
 `HYDRA_FULL_ERROR`. The submitter must set `WEIR_ARTIFACTS_URI` per run, for
-example `s3://<artifact-bucket>/runs/<run-id>/`, and pass `algo.device=cuda`
-because the training config defaults to CPU.
+example `s3://<artifact-bucket>/runs/<run-id>/`, and pass `algo.device=cuda` or
+`algo.device=cpu` because the training config defaults to CPU. The CPU queue
+uses 8 subprocess MuJoCo envs only when the submitter also passes
+`algo.n_envs=8 algo.vec_env=subproc`.
 
 ## Outputs
 
 ```bash
 tofu -chdir=infra output -raw job_queue
 tofu -chdir=infra output -raw job_definition
+tofu -chdir=infra output -raw cpu_job_queue
+tofu -chdir=infra output -raw cpu_job_definition
 tofu -chdir=infra output -raw artifact_uri_prefix
 ```
 

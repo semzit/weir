@@ -7,7 +7,7 @@ from typing import Any
 
 from omegaconf import DictConfig
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from weir.core.interfaces import Shape, SimBackend
 from weir.core.run import Run
@@ -77,16 +77,14 @@ def _make_env(
     task: dict[str, Any],
     agent: dict[str, Any],
     n_envs: int,
-) -> GymEnv | DummyVecEnv:
+    vec_env: str,
+) -> GymEnv | DummyVecEnv | SubprocVecEnv:
     """Build the training environment, vectorized when n_envs > 1.
 
-    DummyVecEnv runs the envs in one process (sequential stepping). The sim
-    is cheap (~0.05 ms/step) relative to the policy (~1 ms), so parallelism
-    is not the win here — experience diversity (N different starting states
-    per update) and batched policy inference are. SubprocVecEnv was measured
-    slower: its per-step IPC overhead dwarfs the sim time. Each factory
-    builds a fresh sim from the config, so only plain config dicts are
-    shared (the caller's ``sim`` is never moved).
+    ``dummy`` steps the envs sequentially in one process and batches policy
+    inference. ``subproc`` steps them in separate processes so MuJoCo physics
+    runs in parallel; each factory builds a fresh sim, so the caller's ``sim``
+    is never moved.
     """
     if n_envs <= 1:
         return GymEnv(sim)
@@ -96,7 +94,11 @@ def _make_env(
         extra.load(agent, {**sim_config, "task": task})
         return GymEnv(extra)
 
-    return DummyVecEnv([factory for _ in range(n_envs)])
+    if vec_env == "subproc":
+        return SubprocVecEnv([factory for _ in range(n_envs)])
+    if vec_env == "dummy":
+        return DummyVecEnv([factory for _ in range(n_envs)])
+    raise ValueError(f"Unknown vec_env: {vec_env!r}")
 
 
 def run(cfg: DictConfig) -> dict[str, Any]:
@@ -129,7 +131,8 @@ def run(cfg: DictConfig) -> dict[str, Any]:
     )
 
     n_envs = int(algorithm_config.get("n_envs", 1))
-    env = _make_env(sim, sim_config, task, agent, n_envs)
+    vec_env = str(algorithm_config.get("vec_env", "dummy"))
+    env = _make_env(sim, sim_config, task, agent, n_envs, vec_env)
     manifest_kwargs = {
         "agent": agent,
         "task": task,

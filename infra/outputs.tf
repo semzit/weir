@@ -26,6 +26,18 @@ output "job_definition" {
   value = aws_batch_job_definition.train.arn
 }
 
+output "cpu_compute_environment" {
+  value = aws_batch_compute_environment.cpu.name
+}
+
+output "cpu_job_queue" {
+  value = aws_batch_job_queue.cpu.name
+}
+
+output "cpu_job_definition" {
+  value = aws_batch_job_definition.train_cpu.arn
+}
+
 output "log_group" {
   value = aws_cloudwatch_log_group.batch.name
 }

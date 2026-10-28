@@ -4,4 +4,6 @@ budget_email = "you@example.com"
 
 # gpu_instance_type = "g5.xlarge"
 # max_vcpus         = 8
+# cpu_instance_type = "c7i.4xlarge"
+# cpu_max_vcpus     = 16
 # monthly_budget_usd = 50

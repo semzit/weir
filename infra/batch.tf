@@ -1,6 +1,6 @@
 resource "aws_security_group" "batch" {
   name_prefix = "${local.name}-batch-"
-  description = "AWS Batch GPU workers; egress only"
+  description = "AWS Batch workers; egress only"
   vpc_id      = data.aws_vpc.default.id
 
   egress {
@@ -50,6 +50,81 @@ resource "aws_batch_job_queue" "gpu" {
   compute_environment_order {
     order               = 1
     compute_environment = aws_batch_compute_environment.gpu.arn
+  }
+}
+
+resource "aws_batch_compute_environment" "cpu" {
+  name         = "${local.name}-cpu"
+  type         = "MANAGED"
+  state        = "ENABLED"
+  service_role = aws_iam_role.batch_service.arn
+
+  compute_resources {
+    type                = "EC2"
+    allocation_strategy = "BEST_FIT_PROGRESSIVE"
+    min_vcpus           = 0
+    max_vcpus           = var.cpu_max_vcpus
+    instance_type       = [var.cpu_instance_type]
+    subnets             = data.aws_subnets.default.ids
+    security_group_ids  = [aws_security_group.batch.id]
+    instance_role       = aws_iam_instance_profile.instance.arn
+
+    ec2_configuration {
+      image_type = "ECS_AL2023"
+    }
+  }
+}
+
+resource "aws_batch_job_queue" "cpu" {
+  name     = "${local.name}-cpu"
+  state    = "ENABLED"
+  priority = 2
+
+  compute_environment_order {
+    order               = 1
+    compute_environment = aws_batch_compute_environment.cpu.arn
+  }
+}
+
+resource "aws_batch_job_definition" "train_cpu" {
+  name                  = "${local.name}-train-cpu"
+  type                  = "container"
+  platform_capabilities = ["EC2"]
+
+  container_properties = jsonencode({
+    image = local.image
+
+    resourceRequirements = [
+      { type = "VCPU", value = local.cpu_vcpus },
+      { type = "MEMORY", value = local.cpu_memory },
+    ]
+
+    jobRoleArn       = aws_iam_role.job.arn
+    executionRoleArn = aws_iam_role.execution.arn
+
+    environment = [
+      { name = "WEIR_RUN_DIR", value = "/work/run" },
+      { name = "WEIR_REQUIRE_GPU", value = "0" },
+      { name = "AWS_REGION", value = var.region },
+      { name = "HYDRA_FULL_ERROR", value = "1" },
+    ]
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.batch.name
+        "awslogs-region"        = var.region
+        "awslogs-stream-prefix" = "train-cpu"
+      }
+    }
+  })
+
+  retry_strategy {
+    attempts = local.retries
+  }
+
+  timeout {
+    attempt_duration_seconds = local.timeout
   }
 }
 

@@ -33,7 +33,7 @@ def test_config_composition() -> None:
 
     agent_cfg = make_config(["agent=humanoid"])
     assert agent_cfg.agent.name == "berkeley_humanoid"
-    assert "berkeley_humanoid.xml" in str(agent_cfg.agent.model)
+    assert "scene.xml" in str(agent_cfg.agent.model)
 
     task_cfg = make_config(["task=standing"])
     assert task_cfg.task.name == "standing"

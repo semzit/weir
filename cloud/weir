@@ -10,7 +10,7 @@ usage: cloud/weir <command> [args...]
 Commands:
   setup <region>        Create the OpenTofu state bucket and initialize the backend.
   deploy                Apply the Batch stack using the current git SHA as image_tag.
-  train [overrides...]  Submit a GPU training job (algo.device=cuda is prepended).
+  train [overrides...]  Submit a training job; WEIR_COMPUTE=gpu|cpu selects the queue.
   status [job-id]       Show recent jobs or one job.
   logs [job-id]         Show logs for a job; add --follow to stream.
   pull [run-id|job-id]  Download run artifacts from S3.
@@ -21,6 +21,7 @@ Environment:
   WEIR_REGION           AWS region for setup.
   WEIR_IMAGE_TAG        Image tag for deploy; defaults to the current git SHA.
   WEIR_RUN_ID           Override the generated run id for train.
+  WEIR_COMPUTE          Compute queue for train: gpu (default) or cpu.
 EOF
 }
 
