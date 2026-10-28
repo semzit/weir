@@ -80,6 +80,15 @@ def test_sim_builds_from_manifest(tmp_path: Path) -> None:
     sim.close()
 
 
+def test_sim_builds_from_relative_manifest_model(tmp_path: Path) -> None:
+    run = make_run(tmp_path, model=Path("cartpole.xml"))
+    sim = run.sim()
+    try:
+        assert sim.observation_shape().dims == (4,)
+    finally:
+        sim.close()
+
+
 def test_test_env_exposes_frames_for_render(tmp_path: Path) -> None:
     env = make_run(tmp_path).test_env()
     try:

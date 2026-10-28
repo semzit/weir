@@ -15,6 +15,15 @@ def resolve_model_asset(name: str) -> str:
     return str((MODELS_DIR / name).resolve())
 
 
+def model_asset_reference(path: str) -> str:
+    """Return a models-relative reference when the path is inside the models dir."""
+    resolved = Path(path).resolve()
+    try:
+        return resolved.relative_to(MODELS_DIR.resolve()).as_posix()
+    except ValueError:
+        return str(resolved)
+
+
 def shape_to_box(shape: Shape) -> spaces.Box:
     """Build a gymnasium Box space from a Shape (unbounded when low/high are absent)."""
     low = shape.low if shape.low is not None else -np.inf

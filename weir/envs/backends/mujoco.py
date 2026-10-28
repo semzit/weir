@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 from typing import Any
 
 import mujoco
@@ -9,6 +10,32 @@ import numpy as np
 from weir.core.configs import SimConfig
 from weir.core.interfaces import Action, Observation, Shape, SimBackend, SimStep
 from weir.core.tasks import TASKS, Task
+from weir.envs.utils import resolve_model_asset
+
+
+def _apply_actuator_gains(model: mujoco.MjModel, gains: dict[str, Any]) -> None:
+    """Override position-actuator gains by matching actuator-name suffixes."""
+    if not isinstance(gains, dict):
+        raise ValueError("actuator_gains must be a mapping")
+    for suffix, raw in gains.items():
+        if not isinstance(raw, dict):
+            raise ValueError(f"actuator_gains[{suffix!r}] must be a mapping")
+        try:
+            kp = float(raw["kp"])
+            kv = float(raw["kv"])
+        except KeyError as error:
+            raise ValueError(f"actuator_gains[{suffix!r}] requires kp and kv") from error
+        matched = 0
+        for index in range(model.nu):
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, index)
+            if name is None or not name.endswith(str(suffix)):
+                continue
+            model.actuator_gainprm[index, 0] = kp
+            model.actuator_biasprm[index, 1] = -kp
+            model.actuator_biasprm[index, 2] = -kv
+            matched += 1
+        if matched == 0:
+            raise ValueError(f"actuator_gains suffix {suffix!r} matched no actuators")
 
 
 def _perturb_joint_qpos(
@@ -42,14 +69,43 @@ class MuJoCoSim(SimBackend):
         self._last_action: Action | None = None
         self._last_observation: Observation | None = None
         self._initial_noise = 0.0
+        self._action_repeat = 1
+        self._action_scale: float | None = None
+        self._action_offset: np.ndarray | None = None
+        self._keyframe = -1
 
     def load(self, agent_config: dict[str, Any], sim_config: dict[str, Any]) -> None:
         cfg = SimConfig.model_validate(sim_config)
         model_path = str(agent_config["model"])
+        if not Path(model_path).is_absolute():
+            model_path = resolve_model_asset(model_path)
         model = mujoco.MjModel.from_xml_path(model_path)
         self._model = model
         if cfg.dt is not None:
             model.opt.timestep = cfg.dt
+        self._keyframe = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        if self._keyframe < 0 and model.nkey > 0:
+            self._keyframe = 0
+        self._action_scale = None
+        self._action_offset = None
+        action_scale = agent_config.get("action_scale")
+        if action_scale is not None:
+            self._action_scale = float(action_scale)
+            if self._action_scale <= 0:
+                raise ValueError("action_scale must be positive")
+            if self._keyframe < 0:
+                raise ValueError("action_scale requires a keyframe")
+            self._action_offset = model.key_ctrl[self._keyframe].copy()
+        self._action_repeat = 1
+        control_dt = agent_config.get("control_dt")
+        if control_dt is not None:
+            repeat = round(float(control_dt) / float(model.opt.timestep))
+            if repeat < 1 or not np.isclose(repeat * model.opt.timestep, float(control_dt)):
+                raise ValueError("control_dt must be a positive multiple of the physics timestep")
+            self._action_repeat = repeat
+        actuator_gains = agent_config.get("actuator_gains")
+        if actuator_gains is not None:
+            _apply_actuator_gains(model, actuator_gains)
         self._data = mujoco.MjData(model)
         task_name = cfg.task.name
         task_params = dict(cfg.task.params)
@@ -68,10 +124,13 @@ class MuJoCoSim(SimBackend):
         data = self._require_data()
         self._last_action = None
         self._last_observation = None
-        mujoco.mj_resetData(model, data)
+        if self._keyframe >= 0:
+            mujoco.mj_resetDataKeyframe(model, data, self._keyframe)
+        else:
+            mujoco.mj_resetData(model, data)
         if self._initial_noise > 0:
             _perturb_joint_qpos(model, data, self._initial_noise, np.random.default_rng(seed))
-            mujoco.mj_forward(model, data)
+        mujoco.mj_forward(model, data)
         return self._observe(data)
 
     def step(self, actions: Action) -> SimStep:
@@ -79,8 +138,14 @@ class MuJoCoSim(SimBackend):
         data = self._require_data()
         task = self._require_task()
         action = np.asarray(actions, dtype=float)
-        data.ctrl[:] = action
-        mujoco.mj_step(model, data)
+        if self._action_scale is not None:
+            assert self._action_offset is not None
+            action = np.clip(action, -1.0, 1.0)
+            data.ctrl[:] = self._action_offset + self._action_scale * action
+        else:
+            data.ctrl[:] = action
+        for _ in range(self._action_repeat):
+            mujoco.mj_step(model, data)
         observation = self._observe(data)
         action_f32 = action.astype(np.float32)
         step = SimStep(
@@ -105,6 +170,13 @@ class MuJoCoSim(SimBackend):
 
     def action_shape(self) -> Shape:
         model = self._require_model()
+        if self._action_scale is not None:
+            return Shape(
+                dims=(model.nu,),
+                dtype="float32",
+                low=np.full(model.nu, -1.0, dtype=np.float32),
+                high=np.full(model.nu, 1.0, dtype=np.float32),
+            )
         ctrlrange = model.actuator_ctrlrange
         low = ctrlrange[:, 0].astype(np.float32)
         high = ctrlrange[:, 1].astype(np.float32)
@@ -122,8 +194,8 @@ class MuJoCoSim(SimBackend):
 
     @property
     def dt(self) -> float:
-        """The physics timestep in seconds."""
-        return float(self._require_model().opt.timestep)
+        """The control timestep between actions in seconds."""
+        return float(self._require_model().opt.timestep) * self._action_repeat
 
     def render_frame(self, width: int = 640, height: int = 480) -> np.ndarray:
         """Render the current state with MuJoCo's offscreen renderer (RGB uint8).

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -32,7 +33,7 @@ def test_config_composition() -> None:
 
     agent_cfg = make_config(["agent=humanoid"])
     assert agent_cfg.agent.name == "berkeley_humanoid"
-    assert "berkeley_humanoid.xml" in str(agent_cfg.agent.model)
+    assert "scene.xml" in str(agent_cfg.agent.model)
 
     task_cfg = make_config(["task=standing"])
     assert task_cfg.task.name == "standing"
@@ -49,7 +50,9 @@ def test_train_then_eval(
 
     assert result["steps"] == 32
     assert (tmp_path / "checkpoint.zip").exists()
-    assert (tmp_path / "checkpoint.meta.json").exists()
+    manifest = tmp_path / "checkpoint.meta.json"
+    assert manifest.exists()
+    assert json.loads(manifest.read_text(encoding="utf-8"))["agent"]["model"] == "cartpole.xml"
     events = [record.message for record in caplog.records]
     assert "train.start" in events
     assert "train.complete" in events

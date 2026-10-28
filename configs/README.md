@@ -73,7 +73,10 @@ Rules:
 | Key | Example | Meaning |
 |---|---|---|
 | `name` | `berkeley_humanoid` | Label recorded in run manifests and logs. |
-| `model` | `weir/models/menagerie/...xml` | Path to the MuJoCo XML asset (repo-relative). |
+| `model` | `weir/models/menagerie/...xml` | Path to the MuJoCo XML asset (repo-relative; manifests store it relative to `weir/models`). |
+| `control_dt` | `0.02` | Policy control period in seconds; must be a multiple of the physics timestep. Omit for one physics step per action. |
+| `action_scale` | `0.5` | Converts normalized `[-1, 1]` actions to joint-position targets around the `home` keyframe controls. Omit for raw actuator-range actions. |
+| `actuator_gains` | `{KFE: {kp: 15.0, kv: 1.5}}` | Optional position-actuator gain overrides, matched by actuator-name suffix. Keeps the vendor XML stock while making weak visualization gains trainable. |
 
 ### `task/*.yaml` — the objective
 
@@ -164,6 +167,8 @@ run, they enable pushes with otherwise neutral domain randomization.
 | `ent_coef` | `0.0` | Entropy bonus weight (exploration; 0 = none). |
 | `vf_coef` | `0.5` | Value-function loss weight. |
 | `max_grad_norm` | `0.5` | Gradient clipping norm. |
+| `n_envs` | `1` | Number of training environments. |
+| `vec_env` | `dummy` | `dummy` steps envs sequentially in one process; `subproc` runs each env in its own process for parallel MuJoCo physics. |
 
 ## Example runs
 
