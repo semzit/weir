@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -9,8 +10,8 @@ from hydra import compose, initialize
 from omegaconf import DictConfig
 
 from weir.algo.ppo import PPOAlgorithm
-from weir.cli.eval import run_eval
-from weir.cli.train import run
+from weir.core.application.evaluate import run_eval
+from weir.core.application.train import run
 from weir.core.utils import CONFIG_DIR
 
 ROOT = Path(__file__).parents[2]
@@ -32,7 +33,7 @@ def test_config_composition() -> None:
 
     agent_cfg = make_config(["agent=humanoid"])
     assert agent_cfg.agent.name == "berkeley_humanoid"
-    assert "berkeley_humanoid.xml" in str(agent_cfg.agent.model)
+    assert "scene.xml" in str(agent_cfg.agent.model)
 
     task_cfg = make_config(["task=standing"])
     assert task_cfg.task.name == "standing"
@@ -49,7 +50,9 @@ def test_train_then_eval(
 
     assert result["steps"] == 32
     assert (tmp_path / "checkpoint.zip").exists()
-    assert (tmp_path / "checkpoint.meta.json").exists()
+    manifest = tmp_path / "checkpoint.meta.json"
+    assert manifest.exists()
+    assert json.loads(manifest.read_text(encoding="utf-8"))["agent"]["model"] == "cartpole.xml"
     events = [record.message for record in caplog.records]
     assert "train.start" in events
     assert "train.complete" in events

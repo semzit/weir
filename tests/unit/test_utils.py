@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 from weir.algo.utils import sample_action
 from weir.core.interfaces import Shape
 from weir.core.utils import ROOT, config_to_dict, log_event, resolve_model_path
-from weir.envs.utils import MODELS_DIR, resolve_model_asset
+from weir.envs.utils import MODELS_DIR, model_asset_reference, resolve_model_asset
 
 
 def test_resolve_model_path() -> None:
@@ -27,6 +27,15 @@ def test_resolve_model_asset() -> None:
     resolved = Path(resolve_model_asset("menagerie/berkeley_humanoid/berkeley_humanoid.xml"))
     expected = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.xml"
     assert resolved == expected.resolve()
+
+
+def test_model_asset_reference(tmp_path: Path) -> None:
+    assert model_asset_reference(str(MODELS_DIR / "cartpole.xml")) == "cartpole.xml"
+    nested = MODELS_DIR / "menagerie" / "berkeley_humanoid" / "berkeley_humanoid.xml"
+    assert model_asset_reference(str(nested)) == "menagerie/berkeley_humanoid/berkeley_humanoid.xml"
+
+    external = tmp_path / "custom.xml"
+    assert model_asset_reference(str(external)) == str(external)
 
 
 def test_config_to_dict() -> None:

@@ -1,2 +1,14 @@
 name: berkeley_humanoid
-model: weir/models/menagerie/berkeley_humanoid/berkeley_humanoid.xml
+model: weir/models/menagerie/berkeley_humanoid/scene.xml
+control_dt: 0.02
+action_scale: 0.5
+actuator_gains:
+  KFE:
+    kp: 15.0
+    kv: 1.5
+  FFE:
+    kp: 15.0
+    kv: 1.5
+  FAA:
+    kp: 15.0
+    kv: 1.5

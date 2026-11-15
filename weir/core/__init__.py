@@ -1,1 +1,1 @@
-"""Core plumbing: protocols, tasks, and shared utilities."""
+"""Core domain and application: protocols, tasks, and shared utilities."""

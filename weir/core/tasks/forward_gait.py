@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from weir.core.interfaces import Action, Observation
-from weir.core.tasks.utils import rotate_vector
+from weir.core.tasks.utils import root_height, root_quat, root_vx, root_x, rotate_vector
 
 
 @dataclass(slots=True)
@@ -60,17 +60,18 @@ class WalkForwardTask:
     ) -> float:
         if self.terminated(observation):
             return 0.0
-        forward_vel = float(observation[self.nq])
-        heading = float(rotate_vector(observation[3:7], (1.0, 0.0, 0.0))[0])
-        uprightness = float(rotate_vector(observation[3:7], (0.0, 0.0, 1.0))[2])
+        forward_vel = root_vx(observation, self.nq)
+        quat = root_quat(observation)
+        heading = float(rotate_vector(quat, (1.0, 0.0, 0.0))[0])
+        uprightness = float(rotate_vector(quat, (0.0, 0.0, 1.0))[2])
         action_rate = 0.0
         if prev_action is not None:
             delta = np.asarray(action, dtype=np.float32) - np.asarray(prev_action, dtype=np.float32)
             action_rate = self.action_rate_coef * float(np.sum(np.square(delta)))
         progress = 0.0
         if prev_observation is not None:
-            progress = self.progress_coef * (float(observation[0]) - float(prev_observation[0]))
-        height = self.height_coef * float(observation[2])
+            progress = self.progress_coef * (root_x(observation) - root_x(prev_observation))
+        height = self.height_coef * root_height(observation)
         return (
             self.alive_reward
             + self.forward_coef * forward_vel * heading
@@ -82,9 +83,9 @@ class WalkForwardTask:
         )
 
     def terminated(self, observation: Observation) -> bool:
-        return float(observation[2]) < self.min_height
+        return root_height(observation) < self.min_height
 
     def progress(self, prev_observation: Observation | None, observation: Observation) -> float:
         if prev_observation is None:
             return 0.0
-        return float(observation[0]) - float(prev_observation[0])
+        return root_x(observation) - root_x(prev_observation)

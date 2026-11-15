@@ -7,6 +7,11 @@ __pycache__/
 docs/
 checkpoint.zip
 outputs/
+infra/**/.terraform/
+infra/**/*.tfstate*
+infra/**/terraform.tfvars
+infra/**/backend.hcl
+infra/**/crash.log
 *.mp4
 !assets/*.mp4
 !docs/configuration.md

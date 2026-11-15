@@ -73,7 +73,10 @@ Rules:
 | Key | Example | Meaning |
 |---|---|---|
 | `name` | `berkeley_humanoid` | Label recorded in run manifests and logs. |
-| `model` | `weir/models/menagerie/...xml` | Path to the MuJoCo XML asset (repo-relative). |
+| `model` | `weir/models/menagerie/...xml` | Path to the MuJoCo XML asset (repo-relative; manifests store it relative to `weir/models`). |
+| `control_dt` | `0.02` | Policy control period in seconds; must be a multiple of the physics timestep. Omit for one physics step per action. |
+| `action_scale` | `0.5` | Converts normalized `[-1, 1]` actions to joint-position targets around the `home` keyframe controls. Omit for raw actuator-range actions. |
+| `actuator_gains` | `{KFE: {kp: 15.0, kv: 1.5}}` | Optional position-actuator gain overrides, matched by actuator-name suffix. Keeps the vendor XML stock while making weak visualization gains trainable. |
 
 ### `task/*.yaml` — the objective
 
@@ -114,6 +117,7 @@ learned from this task; it exists for demo renders, not training.
 |---|---|---|
 | `plugin` | `mujoco` | SimBackend implementation in the factory. |
 | `time_limit` | `10.0` | Episode truncation (seconds of simulated time). |
+| `initial_noise` | `0.0` | Std of Gaussian noise added to non-root joint positions at reset (0 = none). |
 | `robust` | `false` | Wrap the sim in the sim-to-real hardening decorator (`RandomizedSim`). |
 | `randomization.mass_scale` | `[0.8, 1.2]` | Per-episode uniform factor range for body masses. |
 | `randomization.friction_scale` | `[0.5, 1.5]` | Per-episode uniform factor range for geom friction. |
@@ -124,6 +128,10 @@ learned from this task; it exists for demo renders, not training.
 | `randomization.perturbation_force` | `0.0` | Std of random body pushes (0 = none). |
 | `randomization.perturbation_prob` | `0.0` | Per-step probability of a push. |
 | `randomization.perturbation_body` | `1` | Body index to push (1 = root; cartpole pole is 2). |
+
+`initial_noise` randomizes the robot's starting joint configuration. A freejoint's
+root pose is left at its model default; models without a freejoint (such as
+cartpole) have all joints perturbed. Seeded resets reproduce the same perturbation.
 
 The `randomization` block only takes effect when `robust: true`.
 
@@ -159,6 +167,8 @@ run, they enable pushes with otherwise neutral domain randomization.
 | `ent_coef` | `0.0` | Entropy bonus weight (exploration; 0 = none). |
 | `vf_coef` | `0.5` | Value-function loss weight. |
 | `max_grad_norm` | `0.5` | Gradient clipping norm. |
+| `n_envs` | `1` | Number of training environments. |
+| `vec_env` | `dummy` | `dummy` steps envs sequentially in one process; `subproc` runs each env in its own process for parallel MuJoCo physics. |
 
 ## Example runs
 

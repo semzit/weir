@@ -7,7 +7,7 @@ instead of being silently defaulted.
 
 from __future__ import annotations
 
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -91,6 +91,7 @@ class AlgorithmConfig(BaseModel):
     max_grad_norm: float
     device: str
     n_envs: int
+    vec_env: Literal["dummy", "subproc"] = "dummy"
     seed: int | None = None
     checkpoint: str | None = None
     checkpoint_freq: int | None = None

@@ -228,11 +228,24 @@ def test_initial_noise_randomizes_unseeded_resets() -> None:
     noisy.close()
 
 
-def test_initial_noise_requires_freejoint() -> None:
-    sim = make_sim(CART_POLE, initial_noise=0.1)
-    with pytest.raises(ValueError, match="freejoint"):
-        sim.reset()
-    sim.close()
+def test_initial_noise_works_without_freejoint() -> None:
+    plain = make_sim(CART_POLE)
+    noisy = make_sim(CART_POLE, initial_noise=0.1)
+    assert not np.array_equal(plain.reset(seed=1), noisy.reset(seed=1))
+    assert np.array_equal(noisy.reset(seed=1), noisy.reset(seed=1))
+    plain.close()
+    noisy.close()
+
+
+def test_initial_noise_perturbs_joints_but_not_root() -> None:
+    plain = make_sim(MENAGERIE)
+    noisy = make_sim(MENAGERIE, initial_noise=0.5)
+    baseline = plain.reset(seed=1)
+    perturbed = noisy.reset(seed=1)
+    assert np.array_equal(baseline[:7], perturbed[:7])
+    assert not np.array_equal(baseline[7:], perturbed[7:])
+    plain.close()
+    noisy.close()
 
 
 def test_load_requires_complete_sim_config() -> None:

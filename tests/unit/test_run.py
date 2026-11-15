@@ -52,9 +52,16 @@ def make_run(
 
 def test_open_without_manifest_is_legacy() -> None:
     run = Run.open(Path("/nowhere/checkpoint.zip"))
+    assert run.checkpoint == Path("/nowhere/checkpoint.zip")
     assert run.config is None
     assert run.obs_dim() is None
     assert run.plugin("algo") is None
+
+
+def test_require_config_rejects_legacy_checkpoint() -> None:
+    run = Run.open(Path("/nowhere/checkpoint.zip"))
+    with pytest.raises(ValueError, match="No manifest"):
+        run.require_config()
 
 
 def test_open_reads_manifest(tmp_path: Path) -> None:
@@ -71,6 +78,15 @@ def test_sim_builds_from_manifest(tmp_path: Path) -> None:
     assert sim.observation_shape().dims == (4,)
     assert sim.action_shape().dims == (1,)
     sim.close()
+
+
+def test_sim_builds_from_relative_manifest_model(tmp_path: Path) -> None:
+    run = make_run(tmp_path, model=Path("cartpole.xml"))
+    sim = run.sim()
+    try:
+        assert sim.observation_shape().dims == (4,)
+    finally:
+        sim.close()
 
 
 def test_test_env_exposes_frames_for_render(tmp_path: Path) -> None:

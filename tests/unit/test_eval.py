@@ -33,7 +33,9 @@ def test_cli_evaluates_and_prints_summary(
         encoding="utf-8",
     )
     monkeypatch.setattr("weir.core.run.create_sim", lambda _name: FakeSim())
-    monkeypatch.setattr("weir.cli.eval.create_algorithm", lambda _name: FakeAlgorithm())
+    monkeypatch.setattr(
+        "weir.core.application.evaluate.create_algorithm", lambda _name: FakeAlgorithm()
+    )
     monkeypatch.setattr(
         sys,
         "argv",
@@ -72,7 +74,8 @@ def test_cli_passes_perturbation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     )
     seen: dict[str, object] = {}
 
-    def fake_run_eval(checkpoint: Path, **kwargs: object) -> dict[str, float]:
+    def fake_evaluate_run(run: object, **kwargs: object) -> dict[str, float]:
+        seen["run"] = run
         seen.update(kwargs)
         return {
             "mean_reward": 1.0,
@@ -81,7 +84,7 @@ def test_cli_passes_perturbation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
             "episodes_completed": 1.0,
         }
 
-    monkeypatch.setattr("weir.cli.eval.run_eval", fake_run_eval)
+    monkeypatch.setattr("weir.cli.eval.evaluate_run", fake_evaluate_run)
     monkeypatch.setattr(
         sys,
         "argv",

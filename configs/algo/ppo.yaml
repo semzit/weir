@@ -14,3 +14,4 @@ max_grad_norm: 0.5
 device: cpu
 checkpoint_freq: null
 n_envs: 1
+vec_env: dummy
