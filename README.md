@@ -1,5 +1,6 @@
 # Weir
-[!IMPORTANT] I am no longer working on this project because I no longer believe it serves any purpose
+>[!IMPORTANT]
+>I am no longer working on this project because I no longer believe it serves any purpose
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/uv-managed-DE5FE1?logo=uv&logoColor=white" alt="uv managed" />
